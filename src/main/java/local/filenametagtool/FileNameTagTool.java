@@ -1118,6 +1118,8 @@ public final class FileNameTagTool {
         int groupTagsWindowY;
         int groupTagsWindowWidth;
         int groupTagsWindowHeight;
+        String everythingPath = "C:\\Program Files\\Everything\\Everything.exe";
+        String iconPath = "C:\\Users\\MU\\Documents\\FileNameTagTool\\ico\\";
         List<String> tags = new ArrayList<>();
     }
 
@@ -1151,6 +1153,8 @@ public final class FileNameTagTool {
                 else if ("groupTagsWindowY".equalsIgnoreCase(k)) cfg.groupTagsWindowY = parseIntSafe(v);
                 else if ("groupTagsWindowWidth".equalsIgnoreCase(k)) cfg.groupTagsWindowWidth = parseIntSafe(v);
                 else if ("groupTagsWindowHeight".equalsIgnoreCase(k)) cfg.groupTagsWindowHeight = parseIntSafe(v);
+                else if ("everythingPath".equalsIgnoreCase(k)) cfg.everythingPath = v;
+                else if ("iconPath".equalsIgnoreCase(k)) cfg.iconPath = v;
             }
         } catch (Exception ignored) {
         }
@@ -1177,6 +1181,8 @@ public final class FileNameTagTool {
             out.add("groupTagsWindowY=" + cfg.groupTagsWindowY);
             out.add("groupTagsWindowWidth=" + cfg.groupTagsWindowWidth);
             out.add("groupTagsWindowHeight=" + cfg.groupTagsWindowHeight);
+            out.add("everythingPath=" + cfg.everythingPath);
+            out.add("iconPath=" + cfg.iconPath);
             out.add("");
             for (String t : normalizeTags(cfg.tags)) {
                 out.add(CFG_TAG + "=" + t);
@@ -1258,11 +1264,16 @@ public final class FileNameTagTool {
 
         JFrame frame = new JFrame(currentPath);
         List<Image> icons = new ArrayList<>();
-        icons.add(new ImageIcon("C:\\Users\\MU\\Documents\\FileNameTagTool\\ico\\tags-16.png").getImage());
-        icons.add(new ImageIcon("C:\\Users\\MU\\Documents\\FileNameTagTool\\ico\\tags-32.png").getImage());
-        icons.add(new ImageIcon("C:\\Users\\MU\\Documents\\FileNameTagTool\\ico\\tags-48.png").getImage());
-        icons.add(new ImageIcon("C:\\Users\\MU\\Documents\\FileNameTagTool\\ico\\tags-64.png").getImage());
-        frame.setIconImages(icons);
+        try {
+            String iconBasePath = cfg.iconPath;
+            icons.add(new ImageIcon(iconBasePath + "tags-16.png").getImage());
+            icons.add(new ImageIcon(iconBasePath + "tags-32.png").getImage());
+            icons.add(new ImageIcon(iconBasePath + "tags-48.png").getImage());
+            icons.add(new ImageIcon(iconBasePath + "tags-64.png").getImage());
+            frame.setIconImages(icons);
+        } catch (Exception e) {
+            System.err.println("Failed to load icons: " + e.getMessage());
+        }
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         frame.setResizable(true);
         
@@ -1340,7 +1351,7 @@ public final class FileNameTagTool {
                             }
                             String searchQuery = currentPath + " 【" + tag + "】";
                             try {
-                                EverythingSearcher.launchEverythingUI(searchQuery);
+                                EverythingSearcher.launchEverythingUI(searchQuery, cfg.everythingPath);
                             } catch (Exception ex) {
                                 ex.printStackTrace();
                             }
@@ -1384,7 +1395,7 @@ public final class FileNameTagTool {
                     queryBuilder.append(" 【").append(tag).append("】");
                 }
                 try {
-                    EverythingSearcher.launchEverythingUI(queryBuilder.toString());
+                    EverythingSearcher.launchEverythingUI(queryBuilder.toString(), cfg.everythingPath);
                 } catch (Exception ex) {
                     ex.printStackTrace();
                 }

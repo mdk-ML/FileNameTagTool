@@ -273,39 +273,36 @@ public class EverythingSearcher {
             return;
         }
 
-//        System.out.println("=== 测试1：简单搜索 *.java 文件 ===");
-//        List<SearchResult> results1 = searcher.search("*.java");
-//        for (SearchResult result : results1) {
-//            System.out.println(result);
-//        }
-//        List<SearchResult> results1 = searcher.search("【 】", "C:\\Users\\MU\\Desktop\\【测试】FileNameTagTool");
-//        for (SearchResult result : results1) {
-//            System.out.println(result);
-//            System.out.println("======");
-//            System.out.println(result.fileName);
-//        }
-        launchEverythingUI("cs");
-//        System.out.println("\n=== 测试2：搜索指定路径下的 PDF 文件 ===");
-//        List<SearchResult> results2 = searcher.searchByExtension("pdf", "C:\\Users\\Public\\Documents");
-//        for (SearchResult result : results2) {
-//            System.out.println(result);
-//        }
+        System.out.println("=== 测试1：简单搜索 *.java 文件 ===");
+        List<SearchResult> results0 = searcher.search("*.java");
+        for (SearchResult result : results0) {
+            System.out.println(result);
+        }
+        
+        List<SearchResult> results1 = searcher.search("【 】", "C:\\Users\\MU\\Desktop\\【测试】FileNameTagTool");
+        for (SearchResult result : results1) {
+            System.out.println(result);
+            System.out.println("======");
+            System.out.println(result.fileName);
+        }
+        System.out.println("\n=== 测试2：搜索指定路径下的 PDF 文件 ===");
+        List<SearchResult> results2 = searcher.searchByExtension("pdf", "C:\\Users\\Public\\Documents");
+        for (SearchResult result : results2) {
+            System.out.println(result);
+        }
 
-//        System.out.println("\n=== 测试3：搜索文件夹 ===");
-//        List<SearchResult> results3 = searcher.searchFolders("Downloads");
-//        for (SearchResult result : results3) {
-//            System.out.println(result);
-//        }
+        System.out.println("\n=== 测试3：搜索文件夹 ===");
+        List<SearchResult> results3 = searcher.searchFolders("Downloads");
+        for (SearchResult result : results3) {
+            System.out.println(result);
+        }
     }
-    /**
-     * 唤起 Everything 图形界面并搜索
-     * @param query 搜索关键词
-     */
-    public  static void launchEverythingUI(String query) {
+
+    public static void launchEverythingUI(String query, String everythingPath) {
         try {
-            new ProcessBuilder("\"C:\\Program Files\\Everything\\Everything.exe\"", "-search", query).start();
-        } catch (IOException e) {
-            throw new RuntimeException("唤起 Everything 失败，请检查路径", e);
+            new ProcessBuilder(everythingPath, "-search", query).start();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }
