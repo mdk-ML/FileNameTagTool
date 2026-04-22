@@ -30,12 +30,7 @@ public final class FileNameTagTool {
     private static final String CFG_TAG = "tag";
 
     private enum Action {
-        ADD("add"),
-        REMOVE_ALL("removeAll"),
-        REMOVE("remove"),
-        NEW_VERSION("newVersion"),
-        COPY_WITHOUT_TAGS("copyWithoutTags"),
-        SEARCH("search");
+        ADD("add"), REMOVE_ALL("removeAll"), REMOVE("remove"), NEW_VERSION("newVersion"), COPY_WITHOUT_TAGS("copyWithoutTags"), SEARCH("search");
 
         final String arg;
 
@@ -63,6 +58,12 @@ public final class FileNameTagTool {
     }
 
     public static void main(String[] args) {
+        // 设置系统的外观
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         System.setProperty("java.awt.headless", "false");
 
         final Parsed parsed = parseArgs(args);
@@ -259,10 +260,7 @@ public final class FileNameTagTool {
 
         final JTextArea input = new JTextArea();
         input.setFont(new java.awt.Font("Microsoft YaHei UI", java.awt.Font.PLAIN, 14));
-        input.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(BORDER_GRAY, 1, true),
-                BorderFactory.createEmptyBorder(12, 12, 12, 12)
-        ));
+        input.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(BORDER_GRAY, 1, true), BorderFactory.createEmptyBorder(12, 12, 12, 12)));
         input.setPreferredSize(new Dimension(400, 120));
         input.setLineWrap(true);
         input.setWrapStyleWord(true);
@@ -361,9 +359,7 @@ public final class FileNameTagTool {
             tagsPanel.add(b);
         }
 
-        JScrollPane tagsScroll = new JScrollPane(tagsPanel,
-                ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
-                ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        JScrollPane tagsScroll = new JScrollPane(tagsPanel, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         tagsScroll.setBackground(BG_WHITE);
 
         final Set<String> smartTags = new HashSet<>();
@@ -768,17 +764,8 @@ public final class FileNameTagTool {
             tagsPanel.add(b);
         }
 
-        JScrollPane tagsScroll = new JScrollPane(tagsPanel,
-                ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
-                ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-        tagsScroll.setBorder(BorderFactory.createTitledBorder(
-                BorderFactory.createEmptyBorder(0, 0, 0, 0),
-                "文件标签（单击标记待移除，双击直接移除）",
-                javax.swing.SwingConstants.LEFT,
-                javax.swing.SwingConstants.TOP,
-                new java.awt.Font("Microsoft YaHei UI", java.awt.Font.PLAIN, 13),
-                TEXT_DARK
-        ));
+        JScrollPane tagsScroll = new JScrollPane(tagsPanel, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        tagsScroll.setBorder(BorderFactory.createTitledBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0), "文件标签（单击标记待移除，双击直接移除）", javax.swing.SwingConstants.LEFT, javax.swing.SwingConstants.TOP, new java.awt.Font("Microsoft YaHei UI", java.awt.Font.PLAIN, 13), TEXT_DARK));
         tagsScroll.setBackground(BG_LIGHT);
 
         JPanel bottom = new JPanel();
@@ -1188,8 +1175,7 @@ public final class FileNameTagTool {
                 out.add(CFG_TAG + "=" + t);
             }
 
-            Files.write(file, out, StandardCharsets.UTF_8,
-                    StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            Files.write(file, out, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
         } catch (Exception ignored) {
         }
     }
@@ -1233,10 +1219,7 @@ public final class FileNameTagTool {
         b.setBorder(BorderFactory.createLineBorder(GRADIENT_START, 2, true));
         b.setPreferredSize(new Dimension(120, 44));
         b.setFont(new java.awt.Font("Microsoft YaHei UI", java.awt.Font.PLAIN, 14));
-        b.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(GRADIENT_START, 2, true),
-                BorderFactory.createEmptyBorder(10, 24, 10, 24)
-        ));
+        b.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(GRADIENT_START, 2, true), BorderFactory.createEmptyBorder(10, 24, 10, 24)));
     }
 
     private static void groupTags(List<Path> paths) {
@@ -1276,7 +1259,7 @@ public final class FileNameTagTool {
         }
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         frame.setResizable(true);
-        
+
         if (cfg.groupTagsWindowWidth > 0 && cfg.groupTagsWindowHeight > 0) {
             frame.setSize(cfg.groupTagsWindowWidth, cfg.groupTagsWindowHeight);
         } else {
@@ -1325,12 +1308,8 @@ public final class FileNameTagTool {
                 toggleButton.setFont(new java.awt.Font("Microsoft YaHei UI", java.awt.Font.PLAIN, 13));
                 toggleButton.setForeground(TEXT_DARK);
                 toggleButton.setBackground(BG_WHITE);
-                toggleButton.setBorderPainted(true);
-                toggleButton.setBorder(BorderFactory.createLineBorder(BORDER_GRAY, 1, true));
                 toggleButton.setFocusPainted(false);
-                toggleButton.setOpaque(true);
                 toggleButton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
-                // toggleButton.setSize(toggleButton.getPreferredSize());
                 Dimension d = toggleButton.getPreferredSize();
                 toggleButton.setPreferredSize(new Dimension(d.width + 20, 36));
                 toggleButton.setHorizontalAlignment(SwingConstants.CENTER);
@@ -1371,12 +1350,9 @@ public final class FileNameTagTool {
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         buttonPanel.setBackground(BG_WHITE);
 
-        JButton searchButton = new JButton("搜索选中");
+        JButton searchButton = new JButton("搜索");
         searchButton.setFont(new java.awt.Font("Microsoft YaHei UI", java.awt.Font.PLAIN, 13));
-        searchButton.setForeground(Color.WHITE);
-        searchButton.setBackground(GRADIENT_START);
-        searchButton.setBorderPainted(false);
-        searchButton.setFocusPainted(false);
+        searchButton.setPreferredSize(new Dimension(searchButton.getPreferredSize().width + 20, 36));
         searchButton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         searchButton.addActionListener(e -> {
             java.util.List<String> selectedTags = new java.util.ArrayList<>();
@@ -1404,10 +1380,7 @@ public final class FileNameTagTool {
 
         JButton refreshButton = new JButton("刷新");
         refreshButton.setFont(new java.awt.Font("Microsoft YaHei UI", java.awt.Font.PLAIN, 13));
-        refreshButton.setForeground(Color.WHITE);
-        refreshButton.setBackground(GRADIENT_START);
-        refreshButton.setBorderPainted(false);
-        refreshButton.setFocusPainted(false);
+        refreshButton.setPreferredSize(new Dimension(refreshButton.getPreferredSize().width + 20, 36));
         refreshButton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         refreshButton.addActionListener(e -> {
             saveWindowPosition(frame);
@@ -1449,12 +1422,8 @@ public final class FileNameTagTool {
             b.setForeground(TEXT_DARK);
             b.setBackground(BG_WHITE);
             b.setBorderPainted(true);
-            b.setBorder(BorderFactory.createLineBorder(BORDER_GRAY, 1, true));
         }
-        b.setFocusPainted(false);
         b.setOpaque(true);
-        b.setFont(new java.awt.Font("Microsoft YaHei UI", java.awt.Font.PLAIN, 13));
-        b.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
     }
 
     private static void styleSmartTagButton(JButton b) {
