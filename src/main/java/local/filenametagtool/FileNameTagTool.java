@@ -1,12 +1,8 @@
 package local.filenametagtool;
 
 import javax.swing.*;
-import javax.swing.SwingConstants;
-import java.awt.Dimension;
-import java.awt.FlowLayout;
-import java.awt.Frame;
-import java.awt.Window;
-import java.awt.Color;
+
+import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.*;
@@ -14,6 +10,7 @@ import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
+import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
@@ -37,7 +34,8 @@ public final class FileNameTagTool {
         REMOVE_ALL("removeAll"),
         REMOVE("remove"),
         NEW_VERSION("newVersion"),
-        COPY_WITHOUT_TAGS("copyWithoutTags");
+        COPY_WITHOUT_TAGS("copyWithoutTags"),
+        SEARCH("search");
 
         final String arg;
 
@@ -95,17 +93,18 @@ public final class FileNameTagTool {
 
             try {
                 server.close();
-            } catch (IOException ignored) { }
+            } catch (IOException ignored) {
+            }
             acceptor.shutdownNow();
 
             final List<Path> existing = paths.stream()
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty())
-                    .map(FileNameTagTool::safeToPath)
-                    .filter(Objects::nonNull)
-                    .filter(p -> Files.exists(p, LinkOption.NOFOLLOW_LINKS))
-                    .distinct()
-                    .toList();
+                                             .map(String::trim)
+                                             .filter(s -> !s.isEmpty())
+                                             .map(FileNameTagTool::safeToPath)
+                                             .filter(Objects::nonNull)
+                                             .filter(p -> Files.exists(p, LinkOption.NOFOLLOW_LINKS))
+                                             .distinct()
+                                             .toList();
 
             if (existing.isEmpty()) {
                 showMessage("没有获取到有效的文件/文件夹路径。请先在资源管理器中选中后再点击菜单。", "提示");
@@ -118,29 +117,34 @@ public final class FileNameTagTool {
                 return;
             }
 
+            if (action == Action.SEARCH) {
+                groupTags(existing);
+                return;
+            }
+
             final List<String> addTags;
-        final Set<String> removeTags;
-        if (action == Action.ADD) {
-            final Object[] result = askTagsWithHistory();
-            if (result == null) return;
+            final Set<String> removeTags;
+            if (action == Action.ADD) {
+                final Object[] result = askTagsWithHistory();
+                if (result == null) return;
 
-            final List<String> tags = (List<String>) result[0];
-            final Set<String> smartTags = (Set<String>) result[1];
+                final List<String> tags = (List<String>) result[0];
+                final Set<String> smartTags = (Set<String>) result[1];
 
-            final List<String> normalized = normalizeTags(tags);
-            if (normalized.isEmpty()) return;
+                final List<String> normalized = normalizeTags(tags);
+                if (normalized.isEmpty()) return;
 
-            rememberTags(normalized, smartTags);
-            addTags = normalized;
-            removeTags = null;
-        } else if (action == Action.REMOVE) {
-            removeTags = askTagsToRemove(existing);
-            if (removeTags == null) return;
-            addTags = null;
-        } else {
-            addTags = null;
-            removeTags = null;
-        }
+                rememberTags(normalized, smartTags);
+                addTags = normalized;
+                removeTags = null;
+            } else if (action == Action.REMOVE) {
+                removeTags = askTagsToRemove(existing);
+                if (removeTags == null) return;
+                addTags = null;
+            } else {
+                addTags = null;
+                removeTags = null;
+            }
 
             int renamed = 0;
             int skipped = 0;
@@ -256,8 +260,8 @@ public final class FileNameTagTool {
         final JTextArea input = new JTextArea();
         input.setFont(new java.awt.Font("Microsoft YaHei UI", java.awt.Font.PLAIN, 14));
         input.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(BORDER_GRAY, 1, true),
-            BorderFactory.createEmptyBorder(12, 12, 12, 12)
+                BorderFactory.createLineBorder(BORDER_GRAY, 1, true),
+                BorderFactory.createEmptyBorder(12, 12, 12, 12)
         ));
         input.setPreferredSize(new Dimension(400, 120));
         input.setLineWrap(true);
@@ -272,6 +276,7 @@ public final class FileNameTagTool {
                     input.setForeground(TEXT_DARK);
                 }
             }
+
             @Override
             public void focusLost(java.awt.event.FocusEvent e) {
                 if (input.getText().isEmpty()) {
@@ -310,7 +315,8 @@ public final class FileNameTagTool {
                 }
                 if (b.isSelected()) {
                     String currentText = input.getText();
-                    if (currentText.equals("输入自定义标签，多个标签请用空格分隔，例如：紧急任务 Q2季度报告 客户反馈") || currentText.trim().isEmpty()) {
+                    if (currentText.equals("输入自定义标签，多个标签请用空格分隔，例如：紧急任务 Q2季度报告 客户反馈") || currentText.trim()
+                                                                                                                                  .isEmpty()) {
                         input.setText(t);
                         input.setForeground(TEXT_DARK);
                     } else {
@@ -395,7 +401,8 @@ public final class FileNameTagTool {
                 String dateTag = today.format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
                 smartTags.add(dateTag);
                 String currentText = input.getText();
-                if (currentText.equals("输入自定义标签，多个标签请用空格分隔，例如：紧急任务 Q2季度报告 客户反馈") || currentText.trim().isEmpty()) {
+                if (currentText.equals("输入自定义标签，多个标签请用空格分隔，例如：紧急任务 Q2季度报告 客户反馈") || currentText.trim()
+                                                                                                                              .isEmpty()) {
                     input.setText(dateTag);
                     input.setForeground(TEXT_DARK);
                 } else {
@@ -439,7 +446,8 @@ public final class FileNameTagTool {
                 smartTags.add("工作");
                 smartTags.add("重要");
                 String currentText = input.getText();
-                if (currentText.equals("输入自定义标签，多个标签请用空格分隔，例如：紧急任务 Q2季度报告 客户反馈") || currentText.trim().isEmpty()) {
+                if (currentText.equals("输入自定义标签，多个标签请用空格分隔，例如：紧急任务 Q2季度报告 客户反馈") || currentText.trim()
+                                                                                                                              .isEmpty()) {
                     input.setText("工作 重要");
                     input.setForeground(TEXT_DARK);
                 } else {
@@ -483,7 +491,8 @@ public final class FileNameTagTool {
                 smartTags.add("项目A");
                 smartTags.add("会议");
                 String currentText = input.getText();
-                if (currentText.equals("输入自定义标签，多个标签请用空格分隔，例如：紧急任务 Q2季度报告 客户反馈") || currentText.trim().isEmpty()) {
+                if (currentText.equals("输入自定义标签，多个标签请用空格分隔，例如：紧急任务 Q2季度报告 客户反馈") || currentText.trim()
+                                                                                                                              .isEmpty()) {
                     input.setText("项目A 会议");
                     input.setForeground(TEXT_DARK);
                 } else {
@@ -527,7 +536,8 @@ public final class FileNameTagTool {
                 smartTags.add("文档");
                 smartTags.add("计划");
                 String currentText = input.getText();
-                if (currentText.equals("输入自定义标签，多个标签请用空格分隔，例如：紧急任务 Q2季度报告 客户反馈") || currentText.trim().isEmpty()) {
+                if (currentText.equals("输入自定义标签，多个标签请用空格分隔，例如：紧急任务 Q2季度报告 客户反馈") || currentText.trim()
+                                                                                                                              .isEmpty()) {
                     input.setText("文档 计划");
                     input.setForeground(TEXT_DARK);
                 } else {
@@ -762,12 +772,12 @@ public final class FileNameTagTool {
                 ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
                 ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         tagsScroll.setBorder(BorderFactory.createTitledBorder(
-            BorderFactory.createEmptyBorder(0, 0, 0, 0),
-            "文件标签（单击标记待移除，双击直接移除）",
-            javax.swing.SwingConstants.LEFT,
-            javax.swing.SwingConstants.TOP,
-            new java.awt.Font("Microsoft YaHei UI", java.awt.Font.PLAIN, 13),
-            TEXT_DARK
+                BorderFactory.createEmptyBorder(0, 0, 0, 0),
+                "文件标签（单击标记待移除，双击直接移除）",
+                javax.swing.SwingConstants.LEFT,
+                javax.swing.SwingConstants.TOP,
+                new java.awt.Font("Microsoft YaHei UI", java.awt.Font.PLAIN, 13),
+                TEXT_DARK
         ));
         tagsScroll.setBackground(BG_LIGHT);
 
@@ -1104,6 +1114,10 @@ public final class FileNameTagTool {
         int windowW;
         int windowH;
         int divider;
+        int groupTagsWindowX;
+        int groupTagsWindowY;
+        int groupTagsWindowWidth;
+        int groupTagsWindowHeight;
         List<String> tags = new ArrayList<>();
     }
 
@@ -1133,6 +1147,10 @@ public final class FileNameTagTool {
                 else if (CFG_WINDOW_W.equalsIgnoreCase(k)) cfg.windowW = parseIntSafe(v);
                 else if (CFG_WINDOW_H.equalsIgnoreCase(k)) cfg.windowH = parseIntSafe(v);
                 else if (CFG_DIVIDER.equalsIgnoreCase(k)) cfg.divider = parseIntSafe(v);
+                else if ("groupTagsWindowX".equalsIgnoreCase(k)) cfg.groupTagsWindowX = parseIntSafe(v);
+                else if ("groupTagsWindowY".equalsIgnoreCase(k)) cfg.groupTagsWindowY = parseIntSafe(v);
+                else if ("groupTagsWindowWidth".equalsIgnoreCase(k)) cfg.groupTagsWindowWidth = parseIntSafe(v);
+                else if ("groupTagsWindowHeight".equalsIgnoreCase(k)) cfg.groupTagsWindowHeight = parseIntSafe(v);
             }
         } catch (Exception ignored) {
         }
@@ -1155,6 +1173,10 @@ public final class FileNameTagTool {
             out.add(CFG_WINDOW_W + "=" + cfg.windowW);
             out.add(CFG_WINDOW_H + "=" + cfg.windowH);
             out.add(CFG_DIVIDER + "=" + cfg.divider);
+            out.add("groupTagsWindowX=" + cfg.groupTagsWindowX);
+            out.add("groupTagsWindowY=" + cfg.groupTagsWindowY);
+            out.add("groupTagsWindowWidth=" + cfg.groupTagsWindowWidth);
+            out.add("groupTagsWindowHeight=" + cfg.groupTagsWindowHeight);
             out.add("");
             for (String t : normalizeTags(cfg.tags)) {
                 out.add(CFG_TAG + "=" + t);
@@ -1206,9 +1228,205 @@ public final class FileNameTagTool {
         b.setPreferredSize(new Dimension(120, 44));
         b.setFont(new java.awt.Font("Microsoft YaHei UI", java.awt.Font.PLAIN, 14));
         b.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(GRADIENT_START, 2, true),
-            BorderFactory.createEmptyBorder(10, 24, 10, 24)
+                BorderFactory.createLineBorder(GRADIENT_START, 2, true),
+                BorderFactory.createEmptyBorder(10, 24, 10, 24)
         ));
+    }
+
+    private static void groupTags(List<Path> paths) {
+        EverythingSearcher searcher = EverythingSearcher.getInstance();
+        if (!searcher.isEverythingRunning()) {
+            showMessage("错误：Everything 客户端未运行，请先启动 Everything", "搜索标签");
+            return;
+        }
+        List<EverythingSearcher.SearchResult> results = searcher.search("【 】", paths.get(0).toString());
+
+        java.util.Map<String, Integer> tagCount = new java.util.LinkedHashMap<>();
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("【([^】]+)】");
+        for (EverythingSearcher.SearchResult result : results) {
+            String fileName = result.getFileName();
+            java.util.regex.Matcher matcher = pattern.matcher(fileName);
+            while (matcher.find()) {
+                String tag = matcher.group(1);
+                tagCount.put(tag, tagCount.getOrDefault(tag, 0) + 1);
+            }
+        }
+
+        AppConfig cfg = loadConfig();
+        String currentPath = paths.get(0).toString();
+
+
+        JFrame frame = new JFrame(currentPath);
+        List<Image> icons = new ArrayList<>();
+        icons.add(new ImageIcon("C:\\Users\\MU\\Documents\\FileNameTagTool\\ico\\tags-16.png").getImage());
+        icons.add(new ImageIcon("C:\\Users\\MU\\Documents\\FileNameTagTool\\ico\\tags-32.png").getImage());
+        icons.add(new ImageIcon("C:\\Users\\MU\\Documents\\FileNameTagTool\\ico\\tags-48.png").getImage());
+        icons.add(new ImageIcon("C:\\Users\\MU\\Documents\\FileNameTagTool\\ico\\tags-64.png").getImage());
+        frame.setIconImages(icons);
+        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        frame.setResizable(true);
+        
+        if (cfg.groupTagsWindowWidth > 0 && cfg.groupTagsWindowHeight > 0) {
+            frame.setSize(cfg.groupTagsWindowWidth, cfg.groupTagsWindowHeight);
+        } else {
+            frame.setSize(450, 400);
+        }
+
+        if (cfg.groupTagsWindowX > 0 && cfg.groupTagsWindowY > 0) {
+            frame.setLocation(cfg.groupTagsWindowX, cfg.groupTagsWindowY);
+        } else {
+            frame.setLocationRelativeTo(null);
+        }
+
+        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        mainPanel.setBackground(BG_WHITE);
+
+        JPanel pathPanel = new JPanel(new BorderLayout());
+        pathPanel.setBackground(BG_WHITE);
+        mainPanel.add(pathPanel, BorderLayout.NORTH);
+
+        JPanel contentPanel = new JPanel();
+        contentPanel.setBackground(BG_WHITE);
+
+        java.util.List<JToggleButton> toggleButtons = new java.util.ArrayList<>();
+
+        if (tagCount.isEmpty()) {
+            contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
+            JLabel emptyLabel = new JLabel("未找到任何标签");
+            emptyLabel.setFont(new java.awt.Font("Microsoft YaHei UI", java.awt.Font.PLAIN, 14));
+            emptyLabel.setForeground(new Color(102, 102, 102));
+            emptyLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+            contentPanel.add(Box.createVerticalStrut(20));
+            contentPanel.add(emptyLabel);
+        } else {
+            contentPanel.setLayout(new WrapLayout(FlowLayout.LEFT, 12, 12));
+
+            java.util.List<java.util.Map.Entry<String, Integer>> sortedTags = new java.util.ArrayList<>(tagCount.entrySet());
+            sortedTags.sort(java.util.Map.Entry.comparingByValue());
+
+            for (java.util.Map.Entry<String, Integer> entry : sortedTags) {
+                String tag = entry.getKey();
+                int count = entry.getValue();
+
+                String tagText = tag + " (" + count + ")";
+                JToggleButton toggleButton = new JToggleButton(tagText);
+                toggleButton.setFont(new java.awt.Font("Microsoft YaHei UI", java.awt.Font.PLAIN, 13));
+                toggleButton.setForeground(TEXT_DARK);
+                toggleButton.setBackground(BG_WHITE);
+                toggleButton.setBorderPainted(true);
+                toggleButton.setBorder(BorderFactory.createLineBorder(BORDER_GRAY, 1, true));
+                toggleButton.setFocusPainted(false);
+                toggleButton.setOpaque(true);
+                toggleButton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+                // toggleButton.setSize(toggleButton.getPreferredSize());
+                Dimension d = toggleButton.getPreferredSize();
+                toggleButton.setPreferredSize(new Dimension(d.width + 20, 36));
+                toggleButton.setHorizontalAlignment(SwingConstants.CENTER);
+                toggleButtons.add(toggleButton);
+
+                toggleButton.addItemListener(e -> {
+                    styleTagToggle(toggleButton, toggleButton.isSelected());
+                });
+
+                toggleButton.addMouseListener(new java.awt.event.MouseAdapter() {
+                    public void mouseClicked(java.awt.event.MouseEvent e) {
+                        if (e.getClickCount() == 2) {
+                            for (JToggleButton btn : toggleButtons) {
+                                if (btn != toggleButton && btn.isSelected()) {
+                                    btn.setSelected(false);
+                                    styleTagToggle(btn, false);
+                                }
+                            }
+                            String searchQuery = currentPath + " 【" + tag + "】";
+                            try {
+                                EverythingSearcher.launchEverythingUI(searchQuery);
+                            } catch (Exception ex) {
+                                ex.printStackTrace();
+                            }
+                        }
+                    }
+                });
+
+                contentPanel.add(toggleButton);
+            }
+        }
+
+        JScrollPane scrollPane = new JScrollPane(contentPanel);
+        scrollPane.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1));
+        scrollPane.setBackground(BG_WHITE);
+        mainPanel.add(scrollPane, BorderLayout.CENTER);
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        buttonPanel.setBackground(BG_WHITE);
+
+        JButton searchButton = new JButton("搜索选中");
+        searchButton.setFont(new java.awt.Font("Microsoft YaHei UI", java.awt.Font.PLAIN, 13));
+        searchButton.setForeground(Color.WHITE);
+        searchButton.setBackground(GRADIENT_START);
+        searchButton.setBorderPainted(false);
+        searchButton.setFocusPainted(false);
+        searchButton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        searchButton.addActionListener(e -> {
+            java.util.List<String> selectedTags = new java.util.ArrayList<>();
+            for (JToggleButton toggleButton : toggleButtons) {
+                if (toggleButton.isSelected()) {
+                    String tagText = toggleButton.getText();
+                    if (tagText.contains(" (")) {
+                        String tag = tagText.substring(0, tagText.indexOf(" ("));
+                        selectedTags.add(tag);
+                    }
+                }
+            }
+            if (!selectedTags.isEmpty()) {
+                StringBuilder queryBuilder = new StringBuilder(currentPath);
+                for (String tag : selectedTags) {
+                    queryBuilder.append(" 【").append(tag).append("】");
+                }
+                try {
+                    EverythingSearcher.launchEverythingUI(queryBuilder.toString());
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
+        });
+
+        JButton refreshButton = new JButton("刷新");
+        refreshButton.setFont(new java.awt.Font("Microsoft YaHei UI", java.awt.Font.PLAIN, 13));
+        refreshButton.setForeground(Color.WHITE);
+        refreshButton.setBackground(GRADIENT_START);
+        refreshButton.setBorderPainted(false);
+        refreshButton.setFocusPainted(false);
+        refreshButton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        refreshButton.addActionListener(e -> {
+            saveWindowPosition(frame);
+            frame.dispose();
+            groupTags(paths);
+        });
+
+
+        buttonPanel.add(searchButton);
+        buttonPanel.add(refreshButton);
+        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
+
+        frame.addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosing(java.awt.event.WindowEvent e) {
+                saveWindowPosition(frame);
+            }
+        });
+
+        frame.setContentPane(mainPanel);
+        frame.setVisible(true);
+    }
+
+    private static void saveWindowPosition(Window window) {
+        AppConfig cfg = loadConfig();
+        cfg.groupTagsWindowX = window.getX();
+        cfg.groupTagsWindowY = window.getY();
+        cfg.groupTagsWindowWidth = window.getWidth();
+        cfg.groupTagsWindowHeight = window.getHeight();
+        saveConfig(cfg);
     }
 
     private static void styleTagToggle(JToggleButton b, boolean selected) {
@@ -1385,6 +1603,7 @@ public final class FileNameTagTool {
     private static void sleepSilently(int ms) {
         try {
             Thread.sleep(ms);
-        } catch (InterruptedException ignored) { }
+        } catch (InterruptedException ignored) {
+        }
     }
 }
