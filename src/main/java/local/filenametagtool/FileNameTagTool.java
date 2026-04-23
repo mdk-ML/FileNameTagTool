@@ -1,6 +1,7 @@
 package local.filenametagtool;
 
 import javax.swing.*;
+import javax.swing.border.TitledBorder;
 
 import java.awt.*;
 import java.awt.event.MouseAdapter;
@@ -61,6 +62,9 @@ public final class FileNameTagTool {
         // 设置系统的外观
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            // 取消标签页的焦点指示器
+            UIManager.put("TabbedPane.focus", new Color(0, 0, 0, 0));
+
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -119,7 +123,7 @@ public final class FileNameTagTool {
             }
 
             if (action == Action.SEARCH) {
-                groupTags(existing);
+                createTagManagerWindow(existing);
                 return;
             }
 
@@ -1562,5 +1566,423 @@ public final class FileNameTagTool {
             Thread.sleep(ms);
         } catch (InterruptedException ignored) {
         }
+    }
+
+    private static void createTagManagerWindow(List<Path> paths) {
+        AppConfig cfg = loadConfig();
+        String currentPath = paths.get(0).toString();
+
+        JFrame frame = new JFrame("文件标签管理 " + currentPath);
+        List<Image> icons = new ArrayList<>();
+        try {
+            String iconBasePath = cfg.iconPath;
+            icons.add(new ImageIcon(iconBasePath + "tags-16.png").getImage());
+            icons.add(new ImageIcon(iconBasePath + "tags-32.png").getImage());
+            icons.add(new ImageIcon(iconBasePath + "tags-48.png").getImage());
+            icons.add(new ImageIcon(iconBasePath + "tags-64.png").getImage());
+            frame.setIconImages(icons);
+        } catch (Exception e) {
+            System.err.println("Failed to load icons: " + e.getMessage());
+        }
+        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        frame.setResizable(true);
+
+        if (cfg.groupTagsWindowWidth > 0 && cfg.groupTagsWindowHeight > 0) {
+            frame.setSize(cfg.groupTagsWindowWidth, cfg.groupTagsWindowHeight);
+        } else {
+            frame.setSize(800, 600);
+        }
+
+        if (cfg.groupTagsWindowX > 0 && cfg.groupTagsWindowY > 0) {
+            frame.setLocation(cfg.groupTagsWindowX, cfg.groupTagsWindowY);
+        } else {
+            frame.setLocationRelativeTo(null);
+        }
+
+        JPanel mainContainer = new JPanel(new BorderLayout());
+        mainContainer.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        JTabbedPane tabbedPane = new JTabbedPane();
+        tabbedPane.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        tabbedPane.addTab("搜索", null, createSearchTab(paths, frame));
+        tabbedPane.addTab("添加标签", null, createAddTagTab(paths, frame));
+        tabbedPane.addTab("移除标签", null, createRemoveTagTab(paths, frame));
+
+        mainContainer.add(tabbedPane, BorderLayout.CENTER);
+
+        frame.addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosing(java.awt.event.WindowEvent e) {
+                saveWindowPosition(frame);
+            }
+        });
+
+        frame.setContentPane(mainContainer);
+        frame.setVisible(true);
+    }
+
+    private static JPanel createSearchTab(List<Path> paths, JFrame parentFrame) {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+         panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        panel.setBackground(BG_CONTENT);
+
+        EverythingSearcher searcher = EverythingSearcher.getInstance();
+        if (!searcher.isEverythingRunning()) {
+            JLabel errorLabel = new JLabel("错误：Everything 客户端未运行，请先启动 Everything");
+            errorLabel.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 14));
+            errorLabel.setForeground(Color.RED);
+            panel.add(errorLabel, BorderLayout.CENTER);
+            return panel;
+        }
+
+        List<EverythingSearcher.SearchResult> results = searcher.search("【 】", paths.get(0).toString());
+
+        java.util.Map<String, Integer> tagCount = new java.util.LinkedHashMap<>();
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("【([^】]+)】");
+        for (EverythingSearcher.SearchResult result : results) {
+            String fileName = result.getFileName();
+            java.util.regex.Matcher matcher = pattern.matcher(fileName);
+            while (matcher.find()) {
+                String tag = matcher.group(1);
+                tagCount.put(tag, tagCount.getOrDefault(tag, 0) + 1);
+            }
+        }
+
+        String currentPath = paths.get(0).toString();
+        AppConfig cfg = loadConfig();
+
+        JPanel contentPanel = new JPanel();
+        contentPanel.setBackground(BG_CONTENT);
+
+        List<BadgeToggleButton> toggleButtons = new ArrayList<>();
+
+        if (tagCount.isEmpty()) {
+            contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
+            JLabel emptyLabel = new JLabel("未找到任何标签");
+            emptyLabel.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 14));
+            emptyLabel.setForeground(new Color(102, 102, 102));
+            emptyLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+            contentPanel.add(Box.createVerticalStrut(20));
+            contentPanel.add(emptyLabel);
+        } else {
+            contentPanel.setLayout(new WrapLayout(FlowLayout.LEFT, 4, 4));
+
+            List<java.util.Map.Entry<String, Integer>> sortedTags = new ArrayList<>(tagCount.entrySet());
+            sortedTags.sort(java.util.Map.Entry.comparingByValue());
+
+            for (java.util.Map.Entry<String, Integer> entry : sortedTags) {
+                String tag = entry.getKey();
+                int count = entry.getValue();
+
+                BadgeToggleButton toggleButton = new BadgeToggleButton(tag);
+                toggleButton.setBadgeNumber(count);
+                toggleButton.setBadgeColor(BG_MAIN, TEXT_DARK);
+                toggleButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+                toggleButton.setFocusPainted(false);
+                toggleButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                toggleButtons.add(toggleButton);
+
+                toggleButton.addMouseListener(new java.awt.event.MouseAdapter() {
+                    public void mouseClicked(java.awt.event.MouseEvent e) {
+                        if (e.getClickCount() == 2) {
+                            for (JToggleButton btn : toggleButtons) {
+                                if (btn != toggleButton && btn.isSelected()) {
+                                    btn.setSelected(false);
+                                }
+                            }
+                            String searchQuery = currentPath + " 【" + tag + "】";
+                            try {
+                                EverythingSearcher.launchEverythingUI(searchQuery, cfg.everythingPath);
+                            } catch (Exception ex) {
+                                ex.printStackTrace();
+                            }
+                        }
+                    }
+                });
+
+                contentPanel.add(toggleButton);
+            }
+        }
+
+        JScrollPane scrollPane = new JScrollPane(contentPanel);
+        scrollPane.setBackground(BG_CONTENT);
+        //  给面板添加 带标题的边框
+        TitledBorder border = BorderFactory.createTitledBorder("本页标签统计");
+        scrollPane.setBorder(border);
+        panel.add(scrollPane, BorderLayout.CENTER);
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        buttonPanel.setBackground(BG_CONTENT);
+
+        JButton searchButton = new JButton("搜索选中的标签");
+        searchButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        searchButton.setPreferredSize(new Dimension(searchButton.getPreferredSize().width + 20, 36));
+        searchButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        searchButton.setFocusPainted(false);
+        searchButton.addActionListener(e -> {
+            List<String> selectedTags = new ArrayList<>();
+            for (BadgeToggleButton toggleButton : toggleButtons) {
+                if (toggleButton.isSelected()) {
+                    String tagText = toggleButton.getText();
+                    if (tagText.contains(" (")) {
+                        String tag = tagText.substring(0, tagText.indexOf(" ("));
+                        selectedTags.add(tag);
+                    }
+                }
+            }
+            if (!selectedTags.isEmpty()) {
+                StringBuilder queryBuilder = new StringBuilder(currentPath);
+                for (String tag : selectedTags) {
+                    queryBuilder.append(" 【").append(tag).append("】");
+                }
+                try {
+                    EverythingSearcher.launchEverythingUI(queryBuilder.toString(), cfg.everythingPath);
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
+        });
+
+        JButton refreshButton = new JButton("刷新");
+        refreshButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        refreshButton.setPreferredSize(new Dimension(refreshButton.getPreferredSize().width + 20, 36));
+        refreshButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        refreshButton.setFocusPainted(false);
+        refreshButton.addActionListener(e -> {
+            parentFrame.dispose();
+            createTagManagerWindow(paths);
+        });
+
+        buttonPanel.add(searchButton);
+        buttonPanel.add(refreshButton);
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+
+        return panel;
+    }
+
+    private static JPanel createAddTagTab(List<Path> paths, JFrame parentFrame) {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        panel.setBackground(BG_WHITE);
+
+        JLabel headerLabel = new JLabel("💎 增加标签");
+        headerLabel.setFont(new Font("Microsoft YaHei UI", Font.BOLD, 16));
+        headerLabel.setForeground(TEXT_DARK);
+        headerLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(headerLabel);
+        panel.add(Box.createVerticalStrut(15));
+
+        AppConfig appConfig = loadConfig();
+        List<String> history = new ArrayList<>(appConfig.tags);
+
+        JPanel tagsPanel = new JPanel(new WrapLayout(FlowLayout.LEFT, 12, 12));
+        List<JToggleButton> toggles = new ArrayList<>();
+        for (String tag : history) {
+            final String t = tag;
+            JToggleButton b = new JToggleButton(tag);
+            b.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+            b.setForeground(TEXT_DARK);
+            b.setBackground(BG_WHITE);
+            b.setFocusPainted(false);
+            b.setOpaque(true);
+            b.setBorderPainted(true);
+            b.setBorder(BorderFactory.createLineBorder(BORDER_GRAY, 1, true));
+            b.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            b.setPreferredSize(new Dimension(80, 36));
+            b.setHorizontalAlignment(SwingConstants.CENTER);
+            toggles.add(b);
+            tagsPanel.add(b);
+        }
+
+        JScrollPane tagsScroll = new JScrollPane(tagsPanel, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        tagsScroll.setBackground(BG_WHITE);
+        tagsScroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
+        tagsScroll.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(tagsScroll);
+        panel.add(Box.createVerticalStrut(15));
+
+        JTextArea input = new JTextArea();
+        input.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 14));
+        input.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(BORDER_GRAY, 1, true), BorderFactory.createEmptyBorder(12, 12, 12, 12)));
+        input.setPreferredSize(new Dimension(400, 80));
+        input.setLineWrap(true);
+        input.setWrapStyleWord(true);
+        input.setText("输入自定义标签，多个标签请用空格分隔，例如：紧急任务 Q2季度报告 客户反馈");
+        input.setForeground(new Color(160, 160, 160));
+        input.setAlignmentX(Component.LEFT_ALIGNMENT);
+        input.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override
+            public void focusGained(java.awt.event.FocusEvent e) {
+                if (input.getText().equals("输入自定义标签，多个标签请用空格分隔，例如：紧急任务 Q2季度报告 客户反馈")) {
+                    input.setText("");
+                    input.setForeground(TEXT_DARK);
+                }
+            }
+
+            @Override
+            public void focusLost(java.awt.event.FocusEvent e) {
+                if (input.getText().isEmpty()) {
+                    input.setText("输入自定义标签，多个标签请用空格分隔，例如：紧急任务 Q2季度报告 客户反馈");
+                    input.setForeground(new Color(160, 160, 160));
+                }
+            }
+        });
+        panel.add(input);
+        panel.add(Box.createVerticalStrut(15));
+
+        JButton addButton = new JButton("添加标签");
+        addButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 14));
+        addButton.setForeground(TEXT_LIGHT);
+        addButton.setBackground(GRADIENT_START);
+        addButton.setFocusPainted(false);
+        addButton.setOpaque(true);
+        addButton.setBorderPainted(false);
+        addButton.setPreferredSize(new Dimension(120, 40));
+        addButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        addButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        addButton.addActionListener(e -> {
+            String typed = input.getText();
+            if (typed.equals("输入自定义标签，多个标签请用空格分隔，例如：紧急任务 Q2季度报告 客户反馈")) {
+                typed = "";
+            }
+            List<String> tags = splitTags(typed);
+            if (tags.isEmpty()) {
+                showMessage("请输入有效的标签", "提示");
+                return;
+            }
+
+            int renamed = 0;
+            for (Path p : paths) {
+                try {
+                    if (addTagsToNamePrefix(p, tags)) {
+                        renamed++;
+                    }
+                } catch (IOException ex) {
+                    ex.printStackTrace();
+                }
+            }
+            showMessage("成功为 " + renamed + " 个文件添加标签", "完成");
+            rememberTags(tags, new HashSet<>());
+        });
+        panel.add(addButton);
+
+        return panel;
+    }
+
+    private static JPanel createRemoveTagTab(List<Path> paths, JFrame parentFrame) {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        panel.setBackground(BG_WHITE);
+
+        Set<String> existingFileTags = new LinkedHashSet<>();
+        for (Path file : paths) {
+            Path fileName = file.getFileName();
+            if (fileName != null) {
+                String name = fileName.toString();
+                List<String> tags = parseLeadingTags(name);
+                existingFileTags.addAll(tags);
+            }
+        }
+
+        if (existingFileTags.isEmpty()) {
+            JLabel emptyLabel = new JLabel("所选文件没有标签可移除");
+            emptyLabel.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 14));
+            emptyLabel.setForeground(new Color(102, 102, 102));
+            emptyLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+            panel.add(emptyLabel);
+            return panel;
+        }
+
+        JLabel headerLabel = new JLabel("选择要移除的标签");
+        headerLabel.setFont(new Font("Microsoft YaHei UI", Font.BOLD, 16));
+        headerLabel.setForeground(TEXT_DARK);
+        headerLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(headerLabel);
+        panel.add(Box.createVerticalStrut(15));
+
+        final Set<String> tagsToRemove = new HashSet<>();
+        final Color REMOVE_RED = new Color(244, 67, 54);
+
+        JPanel tagsPanel = new JPanel(new WrapLayout(FlowLayout.LEFT, 8, 8));
+        for (String tag : existingFileTags) {
+            final String t = tag;
+            JToggleButton b = new JToggleButton(tag);
+            b.setBackground(BG_WHITE);
+            b.setForeground(TEXT_DARK);
+            b.setFocusPainted(false);
+            b.setOpaque(true);
+            b.setBorderPainted(true);
+            b.setBorder(BorderFactory.createLineBorder(BORDER_GRAY, 1, true));
+            b.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+            b.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+            b.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseClicked(MouseEvent e) {
+                    if (e.getClickCount() == 1 && SwingUtilities.isLeftMouseButton(e)) {
+                        if (tagsToRemove.contains(t)) {
+                            tagsToRemove.remove(t);
+                            b.setBackground(BG_WHITE);
+                            b.setForeground(TEXT_DARK);
+                            b.setBorderPainted(true);
+                            b.setBorder(BorderFactory.createLineBorder(BORDER_GRAY, 1, true));
+                        } else {
+                            tagsToRemove.add(t);
+                            b.setBackground(REMOVE_RED);
+                            b.setForeground(Color.WHITE);
+                            b.setBorderPainted(false);
+                        }
+                    } else if (e.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(e)) {
+                        tagsToRemove.clear();
+                        tagsToRemove.add(t);
+                        performRemove(paths, tagsToRemove, parentFrame);
+                    }
+                }
+            });
+            tagsPanel.add(b);
+        }
+
+        JScrollPane tagsScroll = new JScrollPane(tagsPanel, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        tagsScroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 300));
+        tagsScroll.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(tagsScroll);
+        panel.add(Box.createVerticalStrut(15));
+
+        JButton removeButton = new JButton("移除选中标签");
+        removeButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 14));
+        removeButton.setForeground(TEXT_LIGHT);
+        removeButton.setBackground(REMOVE_RED);
+        removeButton.setFocusPainted(false);
+        removeButton.setOpaque(true);
+        removeButton.setBorderPainted(false);
+        removeButton.setPreferredSize(new Dimension(140, 40));
+        removeButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        removeButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        removeButton.addActionListener(e -> performRemove(paths, tagsToRemove, parentFrame));
+        panel.add(removeButton);
+
+        return panel;
+    }
+
+    private static void performRemove(List<Path> paths, Set<String> tagsToRemove, JFrame parentFrame) {
+        if (tagsToRemove.isEmpty()) {
+            showMessage("请先选择要移除的标签", "提示");
+            return;
+        }
+
+        int renamed = 0;
+        for (Path p : paths) {
+            try {
+                if (removeTags(p, tagsToRemove)) {
+                    renamed++;
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        showMessage("成功从 " + renamed + " 个文件中移除标签", "完成");
+        parentFrame.dispose();
+        createTagManagerWindow(paths);
     }
 }
