@@ -1193,12 +1193,13 @@ public final class FileNameTagTool {
     }
 
     private static final Color GRADIENT_START = new Color(74, 144, 226);
-    private static final Color GRADIENT_END = new Color(123, 104, 238);
     private static final Color BG_LIGHT = new Color(248, 249, 250);
     private static final Color BG_WHITE = Color.WHITE;
+    private static final Color BG_CONTENT = new Color(249, 249, 249);
+    private static final Color BG_MAIN = new Color(240, 240, 240);
     private static final Color BORDER_GRAY = new Color(220, 220, 220);
     private static final Color TEXT_DARK = new Color(51, 51, 51);
-    private static final Color TEXT_LIGHT = new Color(255, 255, 255);
+    private static final Color TEXT_LIGHT = Color.WHITE;
 
     private static void stylePrimaryButton(AbstractButton b) {
         b.setForeground(TEXT_LIGHT);
@@ -1274,16 +1275,12 @@ public final class FileNameTagTool {
 
         JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
         mainPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
-        mainPanel.setBackground(BG_WHITE);
-
-        JPanel pathPanel = new JPanel(new BorderLayout());
-        pathPanel.setBackground(BG_WHITE);
-        mainPanel.add(pathPanel, BorderLayout.NORTH);
+        mainPanel.setBackground(BG_MAIN);
 
         JPanel contentPanel = new JPanel();
-        contentPanel.setBackground(BG_WHITE);
+        contentPanel.setBackground(BG_CONTENT);
 
-        java.util.List<JToggleButton> toggleButtons = new java.util.ArrayList<>();
+        java.util.List<BadgeToggleButton> toggleButtons = new java.util.ArrayList<>();
 
         if (tagCount.isEmpty()) {
             contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
@@ -1294,7 +1291,7 @@ public final class FileNameTagTool {
             contentPanel.add(Box.createVerticalStrut(20));
             contentPanel.add(emptyLabel);
         } else {
-            contentPanel.setLayout(new WrapLayout(FlowLayout.LEFT, 12, 12));
+            contentPanel.setLayout(new WrapLayout(FlowLayout.LEFT, 4, 4));
 
             java.util.List<java.util.Map.Entry<String, Integer>> sortedTags = new java.util.ArrayList<>(tagCount.entrySet());
             sortedTags.sort(java.util.Map.Entry.comparingByValue());
@@ -1303,21 +1300,14 @@ public final class FileNameTagTool {
                 String tag = entry.getKey();
                 int count = entry.getValue();
 
-                String tagText = tag + " (" + count + ")";
-                JToggleButton toggleButton = new JToggleButton(tagText);
+                BadgeToggleButton toggleButton = new BadgeToggleButton(tag);
+                toggleButton.setBadgeNumber(count);
+                toggleButton.setBadgeColor(BG_MAIN, TEXT_DARK);
                 toggleButton.setFont(new java.awt.Font("Microsoft YaHei UI", java.awt.Font.PLAIN, 13));
-                toggleButton.setForeground(TEXT_DARK);
-                toggleButton.setBackground(BG_WHITE);
                 toggleButton.setFocusPainted(false);
-                toggleButton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
-                Dimension d = toggleButton.getPreferredSize();
-                toggleButton.setPreferredSize(new Dimension(d.width + 20, 36));
-                toggleButton.setHorizontalAlignment(SwingConstants.CENTER);
+                toggleButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
                 toggleButtons.add(toggleButton);
 
-                toggleButton.addItemListener(e -> {
-                    styleTagToggle(toggleButton, toggleButton.isSelected());
-                });
 
                 toggleButton.addMouseListener(new java.awt.event.MouseAdapter() {
                     public void mouseClicked(java.awt.event.MouseEvent e) {
@@ -1325,7 +1315,6 @@ public final class FileNameTagTool {
                             for (JToggleButton btn : toggleButtons) {
                                 if (btn != toggleButton && btn.isSelected()) {
                                     btn.setSelected(false);
-                                    styleTagToggle(btn, false);
                                 }
                             }
                             String searchQuery = currentPath + " 【" + tag + "】";
@@ -1343,20 +1332,20 @@ public final class FileNameTagTool {
         }
 
         JScrollPane scrollPane = new JScrollPane(contentPanel);
-        scrollPane.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1));
-        scrollPane.setBackground(BG_WHITE);
+        scrollPane.setBorder(BorderFactory.createLineBorder(BORDER_GRAY, 1));
         mainPanel.add(scrollPane, BorderLayout.CENTER);
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
-        buttonPanel.setBackground(BG_WHITE);
+        buttonPanel.setBackground(BG_MAIN);
 
-        JButton searchButton = new JButton("搜索");
+        JButton searchButton = new JButton("搜索选中的标签");
         searchButton.setFont(new java.awt.Font("Microsoft YaHei UI", java.awt.Font.PLAIN, 13));
         searchButton.setPreferredSize(new Dimension(searchButton.getPreferredSize().width + 20, 36));
         searchButton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        searchButton.setFocusPainted(false);
         searchButton.addActionListener(e -> {
             java.util.List<String> selectedTags = new java.util.ArrayList<>();
-            for (JToggleButton toggleButton : toggleButtons) {
+            for (BadgeToggleButton toggleButton : toggleButtons) {
                 if (toggleButton.isSelected()) {
                     String tagText = toggleButton.getText();
                     if (tagText.contains(" (")) {
@@ -1382,6 +1371,7 @@ public final class FileNameTagTool {
         refreshButton.setFont(new java.awt.Font("Microsoft YaHei UI", java.awt.Font.PLAIN, 13));
         refreshButton.setPreferredSize(new Dimension(refreshButton.getPreferredSize().width + 20, 36));
         refreshButton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        refreshButton.setFocusPainted(false);
         refreshButton.addActionListener(e -> {
             saveWindowPosition(frame);
             frame.dispose();
@@ -1411,19 +1401,6 @@ public final class FileNameTagTool {
         cfg.groupTagsWindowWidth = window.getWidth();
         cfg.groupTagsWindowHeight = window.getHeight();
         saveConfig(cfg);
-    }
-
-    private static void styleTagToggle(JToggleButton b, boolean selected) {
-        if (selected) {
-            b.setForeground(TEXT_LIGHT);
-            b.setBackground(GRADIENT_START);
-            b.setBorderPainted(false);
-        } else {
-            b.setForeground(TEXT_DARK);
-            b.setBackground(BG_WHITE);
-            b.setBorderPainted(true);
-        }
-        b.setOpaque(true);
     }
 
     private static void styleSmartTagButton(JButton b) {
