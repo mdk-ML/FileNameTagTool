@@ -1,30 +1,24 @@
 package local.filenametagtool;
 
 import local.filenametagtool.component.BadgeToggleButton;
-import local.filenametagtool.util.EverythingUtil;
 import local.filenametagtool.component.WrapLayout;
+import local.filenametagtool.util.EverythingUtil;
 
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
-
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.io.*;
-import java.net.*;
+import java.io.IOException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 import java.util.List;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
 public final class FileNameTagTool {
-    private static final int PORT = 45678;
-    private static final int COLLECT_WINDOW_MS = 450;
     private static final Pattern LEADING_TAGS_PATTERN = Pattern.compile("^(?:【[^】]*】)+");
-    private static final String ACTION_LINE_PREFIX = "ACTION:";
 
     private static final String CONFIG_FILE_NAME = "filename-tagtool.conf";
     private static final String CFG_WINDOW_X = "window.x";
@@ -80,81 +74,51 @@ public final class FileNameTagTool {
             return;
         }
 
-        try (ServerSocket server = tryBindServer()) {
-            if (server == null) {
-                sendArgsToPrimary(parsed);
-                return;
-            }
+        final Action action = parsed.action;
+        final List<Path> existing = parsed.paths.stream()
+                                                .map(String::trim)
+                                                .filter(s -> !s.isEmpty())
+                                                .map(FileNameTagTool::safeToPath)
+                                                .filter(Objects::nonNull)
+                                                .filter(p -> Files.exists(p, LinkOption.NOFOLLOW_LINKS))
+                                                .distinct()
+                                                .toList();
 
-            final AtomicReference<Action> actionRef = new AtomicReference<>(parsed.action);
-            final Set<String> paths = ConcurrentHashMap.newKeySet();
-            paths.addAll(parsed.paths);
+        if (existing.isEmpty()) {
+            showMessage("没有获取到有效的文件/文件夹路径。请先在资源管理器中选中后再点击菜单。", "提示");
+            return;
+        }
 
-            final ExecutorService acceptor = Executors.newSingleThreadExecutor(r -> {
-                Thread t = new Thread(r, "filename-tagtool-acceptor");
-                t.setDaemon(true);
-                return t;
-            });
+        if (action == Action.SEARCH) {
+            createTagManagerWindow(existing);
+            return;
+        }
 
-            acceptor.submit(() -> acceptLoop(server, actionRef, paths));
+        final List<String> addTags;
+        final Set<String> removeTags;
+        if (action == Action.ADD) {
+            final Object[] result = askTagsWithHistory();
+            if (result == null) return;
 
-            sleepSilently(COLLECT_WINDOW_MS);
+            final List<String> tags = (List<String>) result[0];
+            final Set<String> smartTags = (Set<String>) result[1];
 
-            try {
-                server.close();
-            } catch (IOException ignored) {
-            }
-            acceptor.shutdownNow();
+            final List<String> normalized = normalizeTags(tags);
+            if (normalized.isEmpty()) return;
 
-            final List<Path> existing = paths.stream()
-                                             .map(String::trim)
-                                             .filter(s -> !s.isEmpty())
-                                             .map(FileNameTagTool::safeToPath)
-                                             .filter(Objects::nonNull)
-                                             .filter(p -> Files.exists(p, LinkOption.NOFOLLOW_LINKS))
-                                             .distinct()
-                                             .toList();
+            rememberTags(normalized, smartTags);
+            addTags = normalized;
+            removeTags = null;
+        } else if (action == Action.REMOVE) {
+            removeTags = askTagsToRemove(existing);
+            if (removeTags == null) return;
+            addTags = null;
+        } else {
+            addTags = null;
+            removeTags = null;
+        }
 
-            if (existing.isEmpty()) {
-                showMessage("没有获取到有效的文件/文件夹路径。请先在资源管理器中选中后再点击菜单。", "提示");
-                return;
-            }
-
-            final Action action = actionRef.get();
-            if (action == null) {
-                showMessage("无法确定动作（add/removeAll/remove）。", "错误");
-                return;
-            }
-
-            if (action == Action.SEARCH) {
-                createTagManagerWindow(existing);
-                return;
-            }
-
-            final List<String> addTags;
-            final Set<String> removeTags;
-            if (action == Action.ADD) {
-                final Object[] result = askTagsWithHistory();
-                if (result == null) return;
-
-                final List<String> tags = (List<String>) result[0];
-                final Set<String> smartTags = (Set<String>) result[1];
-
-                final List<String> normalized = normalizeTags(tags);
-                if (normalized.isEmpty()) return;
-
-                rememberTags(normalized, smartTags);
-                addTags = normalized;
-                removeTags = null;
-            } else if (action == Action.REMOVE) {
-                removeTags = askTagsToRemove(existing);
-                if (removeTags == null) return;
-                addTags = null;
-            } else {
-                addTags = null;
-                removeTags = null;
-            }
-
+        try {
             int renamed = 0;
             int skipped = 0;
             for (Path p : existing) {
@@ -181,60 +145,6 @@ public final class FileNameTagTool {
             showMessage("选择项：" + existing.size() + "\n成功重命名：" + renamed + "\n跳过/失败：" + skipped, "完成");
         } catch (Exception e) {
             showMessage(String.valueOf(e), "错误");
-        }
-    }
-
-    private static ServerSocket tryBindServer() {
-        try {
-            ServerSocket ss = new ServerSocket();
-            ss.setReuseAddress(false);
-            ss.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), PORT));
-            return ss;
-        } catch (IOException e) {
-            return null;
-        }
-    }
-
-    private static void acceptLoop(ServerSocket server, AtomicReference<Action> actionRef, Set<String> paths) {
-        while (!server.isClosed()) {
-            try (Socket s = server.accept()) {
-                try (BufferedReader br = new BufferedReader(new InputStreamReader(s.getInputStream(), StandardCharsets.UTF_8))) {
-                    String line;
-                    while ((line = br.readLine()) != null) {
-                        String v = line.trim();
-                        if (v.isEmpty()) continue;
-                        if (v.startsWith(ACTION_LINE_PREFIX)) {
-                            Action incoming = Action.fromArg(v.substring(ACTION_LINE_PREFIX.length()));
-                            if (incoming != null) {
-                                actionRef.compareAndSet(null, incoming);
-                            }
-                            continue;
-                        }
-                        paths.add(v);
-                    }
-                }
-            } catch (IOException ignored) {
-                return;
-            }
-        }
-    }
-
-    private static void sendArgsToPrimary(Parsed parsed) {
-        if (parsed == null) return;
-        try (Socket s = new Socket()) {
-            s.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(), PORT), 120);
-            try (BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(s.getOutputStream(), StandardCharsets.UTF_8))) {
-                if (parsed.action != null) {
-                    bw.write(ACTION_LINE_PREFIX + parsed.action.arg);
-                    bw.newLine();
-                }
-                for (String p : parsed.paths) {
-                    bw.write(p);
-                    bw.newLine();
-                }
-                bw.flush();
-            }
-        } catch (IOException ignored) {
         }
     }
 
@@ -1647,7 +1557,7 @@ public final class FileNameTagTool {
 //        TitledBorder border = BorderFactory.createTitledBorder("本页标签统计");
 //        contentPanel.setBorder(border);
 //        panel.add(contentPanel, BorderLayout.CENTER);
-        
+
         JScrollPane scrollPane = new JScrollPane(contentPanel);
         scrollPane.setBackground(BG_CONTENT);
         //  给面板添加 带标题的边框
