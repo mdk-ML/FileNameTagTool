@@ -1,8 +1,7 @@
-package local.filenametagtool;
+package local.filenametagtool.demo;
 
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
-import java.awt.*;
 
 public class TitledBorderDemo {
     public static void main(String[] args) {

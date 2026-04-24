@@ -1,13 +1,11 @@
-package local.filenametagtool;
+package local.filenametagtool.util;
 
 import com.sun.jna.Library;
 import com.sun.jna.Native;
 import com.sun.jna.WString;
-import com.sun.jna.platform.win32.Kernel32;
 import com.sun.jna.platform.win32.WinBase;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,7 +14,7 @@ import java.util.List;
  * 依赖官方 Everything32.dll/Everything64.dll
  * 要求：Everything客户端必须在后台运行
  */
-public class EverythingSearcher {
+public class EverythingUtil {
 
     // 定义DLL接口
     private interface EverythingDll extends Library {
@@ -127,9 +125,9 @@ public class EverythingSearcher {
     }
 
     // 单例模式
-    private static final EverythingSearcher INSTANCE = new EverythingSearcher();
+    private static final EverythingUtil INSTANCE = new EverythingUtil();
 
-    private EverythingSearcher() {
+    private EverythingUtil() {
         // 检查DLL是否加载成功
         try {
             EverythingDll.INSTANCE.Everything_GetLastError();
@@ -138,7 +136,7 @@ public class EverythingSearcher {
         }
     }
 
-    public static EverythingSearcher getInstance() {
+    public static EverythingUtil getInstance() {
         return INSTANCE;
     }
 
@@ -266,7 +264,7 @@ public class EverythingSearcher {
 
     // 测试方法
     public static void main(String[] args) {
-        EverythingSearcher searcher = EverythingSearcher.getInstance();
+        EverythingUtil searcher = EverythingUtil.getInstance();
 
         if (!searcher.isEverythingRunning()) {
             System.err.println("错误：Everything客户端未运行，请先启动Everything");

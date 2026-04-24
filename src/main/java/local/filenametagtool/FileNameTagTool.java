@@ -1,5 +1,9 @@
 package local.filenametagtool;
 
+import local.filenametagtool.component.BadgeToggleButton;
+import local.filenametagtool.util.EverythingUtil;
+import local.filenametagtool.component.WrapLayout;
+
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
 
@@ -1026,71 +1030,6 @@ public final class FileNameTagTool {
         return new ArrayList<>(out);
     }
 
-    private static final class WrapLayout extends FlowLayout {
-        WrapLayout(int align, int hgap, int vgap) {
-            super(align, hgap, vgap);
-        }
-
-        @Override
-        public Dimension preferredLayoutSize(java.awt.Container target) {
-            return layoutSize(target, true);
-        }
-
-        @Override
-        public Dimension minimumLayoutSize(java.awt.Container target) {
-            Dimension minimum = layoutSize(target, false);
-            minimum.width -= (getHgap() + 1);
-            return minimum;
-        }
-
-        private Dimension layoutSize(java.awt.Container target, boolean preferred) {
-            synchronized (target.getTreeLock()) {
-                int targetWidth = target.getSize().width;
-                if (targetWidth == 0) {
-                    java.awt.Container parent = target.getParent();
-                    if (parent != null) targetWidth = parent.getSize().width;
-                }
-                if (targetWidth == 0) targetWidth = Integer.MAX_VALUE;
-
-                int hgap = getHgap();
-                int vgap = getVgap();
-                java.awt.Insets insets = target.getInsets();
-                int horizontalInsetsAndGap = insets.left + insets.right + (hgap * 2);
-                int maxWidth = targetWidth - horizontalInsetsAndGap;
-
-                Dimension dim = new Dimension(0, 0);
-                int rowWidth = 0;
-                int rowHeight = 0;
-
-                int nmembers = target.getComponentCount();
-                for (int i = 0; i < nmembers; i++) {
-                    java.awt.Component m = target.getComponent(i);
-                    if (!m.isVisible()) continue;
-
-                    Dimension d = preferred ? m.getPreferredSize() : m.getMinimumSize();
-
-                    if (rowWidth + d.width > maxWidth) {
-                        dim.width = Math.max(dim.width, rowWidth);
-                        dim.height += rowHeight + vgap;
-                        rowWidth = 0;
-                        rowHeight = 0;
-                    }
-
-                    if (rowWidth != 0) rowWidth += hgap;
-                    rowWidth += d.width;
-                    rowHeight = Math.max(rowHeight, d.height);
-                }
-
-                dim.width = Math.max(dim.width, rowWidth);
-                dim.height += rowHeight;
-
-                dim.width += horizontalInsetsAndGap;
-                dim.height += insets.top + insets.bottom + vgap * 2;
-                return dim;
-            }
-        }
-    }
-
     private static String buildTagPrefix(List<String> tags) {
         StringBuilder sb = new StringBuilder();
         for (String t : tags) {
@@ -1228,16 +1167,16 @@ public final class FileNameTagTool {
     }
 
     private static void groupTags(List<Path> paths) {
-        EverythingSearcher searcher = EverythingSearcher.getInstance();
+        EverythingUtil searcher = EverythingUtil.getInstance();
         if (!searcher.isEverythingRunning()) {
             showMessage("错误：Everything 客户端未运行，请先启动 Everything", "搜索标签");
             return;
         }
-        List<EverythingSearcher.SearchResult> results = searcher.search("【 】", paths.get(0).toString());
+        List<EverythingUtil.SearchResult> results = searcher.search("【 】", paths.get(0).toString());
 
         java.util.Map<String, Integer> tagCount = new java.util.LinkedHashMap<>();
         java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("【([^】]+)】");
-        for (EverythingSearcher.SearchResult result : results) {
+        for (EverythingUtil.SearchResult result : results) {
             String fileName = result.getFileName();
             java.util.regex.Matcher matcher = pattern.matcher(fileName);
             while (matcher.find()) {
@@ -1323,7 +1262,7 @@ public final class FileNameTagTool {
                             }
                             String searchQuery = currentPath + " 【" + tag + "】";
                             try {
-                                EverythingSearcher.launchEverythingUI(searchQuery, cfg.everythingPath);
+                                EverythingUtil.launchEverythingUI(searchQuery, cfg.everythingPath);
                             } catch (Exception ex) {
                                 ex.printStackTrace();
                             }
@@ -1364,7 +1303,7 @@ public final class FileNameTagTool {
                     queryBuilder.append(" 【").append(tag).append("】");
                 }
                 try {
-                    EverythingSearcher.launchEverythingUI(queryBuilder.toString(), cfg.everythingPath);
+                    EverythingUtil.launchEverythingUI(queryBuilder.toString(), cfg.everythingPath);
                 } catch (Exception ex) {
                     ex.printStackTrace();
                 }
@@ -1622,10 +1561,10 @@ public final class FileNameTagTool {
 
     private static JPanel createSearchTab(List<Path> paths, JFrame parentFrame) {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
-         panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
         panel.setBackground(BG_CONTENT);
 
-        EverythingSearcher searcher = EverythingSearcher.getInstance();
+        EverythingUtil searcher = EverythingUtil.getInstance();
         if (!searcher.isEverythingRunning()) {
             JLabel errorLabel = new JLabel("错误：Everything 客户端未运行，请先启动 Everything");
             errorLabel.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 14));
@@ -1634,11 +1573,11 @@ public final class FileNameTagTool {
             return panel;
         }
 
-        List<EverythingSearcher.SearchResult> results = searcher.search("【 】", paths.get(0).toString());
+        List<EverythingUtil.SearchResult> results = searcher.search("【 】", paths.get(0).toString());
 
         java.util.Map<String, Integer> tagCount = new java.util.LinkedHashMap<>();
         java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("【([^】]+)】");
-        for (EverythingSearcher.SearchResult result : results) {
+        for (EverythingUtil.SearchResult result : results) {
             String fileName = result.getFileName();
             java.util.regex.Matcher matcher = pattern.matcher(fileName);
             while (matcher.find()) {
@@ -1651,20 +1590,21 @@ public final class FileNameTagTool {
         AppConfig cfg = loadConfig();
 
         JPanel contentPanel = new JPanel();
+        contentPanel.setLayout(new WrapLayout(FlowLayout.LEFT, 4, 4));
         contentPanel.setBackground(BG_CONTENT);
 
         List<BadgeToggleButton> toggleButtons = new ArrayList<>();
 
         if (tagCount.isEmpty()) {
-            contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
+            // contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
             JLabel emptyLabel = new JLabel("未找到任何标签");
             emptyLabel.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 14));
             emptyLabel.setForeground(new Color(102, 102, 102));
             emptyLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-            contentPanel.add(Box.createVerticalStrut(20));
+            // contentPanel.add(Box.createVerticalStrut(20));
             contentPanel.add(emptyLabel);
         } else {
-            contentPanel.setLayout(new WrapLayout(FlowLayout.LEFT, 4, 4));
+//            contentPanel.setLayout(new WrapLayout(FlowLayout.LEFT, 4, 4));
 
             List<java.util.Map.Entry<String, Integer>> sortedTags = new ArrayList<>(tagCount.entrySet());
             sortedTags.sort(java.util.Map.Entry.comparingByValue());
@@ -1691,7 +1631,7 @@ public final class FileNameTagTool {
                             }
                             String searchQuery = currentPath + " 【" + tag + "】";
                             try {
-                                EverythingSearcher.launchEverythingUI(searchQuery, cfg.everythingPath);
+                                EverythingUtil.launchEverythingUI(searchQuery, cfg.everythingPath);
                             } catch (Exception ex) {
                                 ex.printStackTrace();
                             }
@@ -1703,6 +1643,11 @@ public final class FileNameTagTool {
             }
         }
 
+//        //  给面板添加 带标题的边框
+//        TitledBorder border = BorderFactory.createTitledBorder("本页标签统计");
+//        contentPanel.setBorder(border);
+//        panel.add(contentPanel, BorderLayout.CENTER);
+        
         JScrollPane scrollPane = new JScrollPane(contentPanel);
         scrollPane.setBackground(BG_CONTENT);
         //  给面板添加 带标题的边框
@@ -1735,7 +1680,7 @@ public final class FileNameTagTool {
                     queryBuilder.append(" 【").append(tag).append("】");
                 }
                 try {
-                    EverythingSearcher.launchEverythingUI(queryBuilder.toString(), cfg.everythingPath);
+                    EverythingUtil.launchEverythingUI(queryBuilder.toString(), cfg.everythingPath);
                 } catch (Exception ex) {
                     ex.printStackTrace();
                 }
@@ -1760,46 +1705,35 @@ public final class FileNameTagTool {
     }
 
     private static JPanel createAddTagTab(List<Path> paths, JFrame parentFrame) {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
-        panel.setBackground(BG_WHITE);
+        panel.setBackground(BG_CONTENT);
 
-        JLabel headerLabel = new JLabel("💎 增加标签");
-        headerLabel.setFont(new Font("Microsoft YaHei UI", Font.BOLD, 16));
-        headerLabel.setForeground(TEXT_DARK);
-        headerLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        panel.add(headerLabel);
-        panel.add(Box.createVerticalStrut(15));
+        JPanel contentPanel = new JPanel();
+        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
+        contentPanel.setBackground(BG_CONTENT);
+
 
         AppConfig appConfig = loadConfig();
         List<String> history = new ArrayList<>(appConfig.tags);
 
         JPanel tagsPanel = new JPanel(new WrapLayout(FlowLayout.LEFT, 12, 12));
-        List<JToggleButton> toggles = new ArrayList<>();
+        tagsPanel.setBackground(BG_CONTENT);
         for (String tag : history) {
-            final String t = tag;
             JToggleButton b = new JToggleButton(tag);
             b.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
-            b.setForeground(TEXT_DARK);
-            b.setBackground(BG_WHITE);
             b.setFocusPainted(false);
-            b.setOpaque(true);
-            b.setBorderPainted(true);
-            b.setBorder(BorderFactory.createLineBorder(BORDER_GRAY, 1, true));
             b.setCursor(new Cursor(Cursor.HAND_CURSOR));
-            b.setPreferredSize(new Dimension(80, 36));
-            b.setHorizontalAlignment(SwingConstants.CENTER);
-            toggles.add(b);
             tagsPanel.add(b);
         }
 
         JScrollPane tagsScroll = new JScrollPane(tagsPanel, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-        tagsScroll.setBackground(BG_WHITE);
+        tagsScroll.setBackground(BG_CONTENT);
         tagsScroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
         tagsScroll.setAlignmentX(Component.LEFT_ALIGNMENT);
-        panel.add(tagsScroll);
-        panel.add(Box.createVerticalStrut(15));
+        TitledBorder historyBorder = BorderFactory.createTitledBorder("历史标签");
+        tagsScroll.setBorder(historyBorder);
+        contentPanel.add(tagsScroll);
 
         JTextArea input = new JTextArea();
         input.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 14));
@@ -1827,19 +1761,24 @@ public final class FileNameTagTool {
                 }
             }
         });
-        panel.add(input);
-        panel.add(Box.createVerticalStrut(15));
+        contentPanel.add(input);
+
+        // JScrollPane mainScroll = new JScrollPane(contentPanel);
+        // mainScroll.setBackground(BG_CONTENT);
+        panel.add(contentPanel, BorderLayout.CENTER);
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        buttonPanel.setBackground(BG_CONTENT);
 
         JButton addButton = new JButton("添加标签");
-        addButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 14));
+        addButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        addButton.setPreferredSize(new Dimension(addButton.getPreferredSize().width + 20, 36));
+        addButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        addButton.setFocusPainted(false);
         addButton.setForeground(TEXT_LIGHT);
         addButton.setBackground(GRADIENT_START);
-        addButton.setFocusPainted(false);
         addButton.setOpaque(true);
         addButton.setBorderPainted(false);
-        addButton.setPreferredSize(new Dimension(120, 40));
-        addButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        addButton.setAlignmentX(Component.LEFT_ALIGNMENT);
         addButton.addActionListener(e -> {
             String typed = input.getText();
             if (typed.equals("输入自定义标签，多个标签请用空格分隔，例如：紧急任务 Q2季度报告 客户反馈")) {
@@ -1863,17 +1802,20 @@ public final class FileNameTagTool {
             }
             showMessage("成功为 " + renamed + " 个文件添加标签", "完成");
             rememberTags(tags, new HashSet<>());
+            parentFrame.dispose();
+            createTagManagerWindow(paths);
         });
-        panel.add(addButton);
+
+        buttonPanel.add(addButton);
+        panel.add(buttonPanel, BorderLayout.SOUTH);
 
         return panel;
     }
 
     private static JPanel createRemoveTagTab(List<Path> paths, JFrame parentFrame) {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
-        panel.setBackground(BG_WHITE);
+        panel.setBackground(BG_CONTENT);
 
         Set<String> existingFileTags = new LinkedHashSet<>();
         for (Path file : paths) {
@@ -1889,26 +1831,30 @@ public final class FileNameTagTool {
             JLabel emptyLabel = new JLabel("所选文件没有标签可移除");
             emptyLabel.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 14));
             emptyLabel.setForeground(new Color(102, 102, 102));
-            emptyLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-            panel.add(emptyLabel);
+            panel.add(emptyLabel, BorderLayout.CENTER);
             return panel;
         }
+
+        JPanel contentPanel = new JPanel();
+        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
+        contentPanel.setBackground(BG_CONTENT);
 
         JLabel headerLabel = new JLabel("选择要移除的标签");
         headerLabel.setFont(new Font("Microsoft YaHei UI", Font.BOLD, 16));
         headerLabel.setForeground(TEXT_DARK);
         headerLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        panel.add(headerLabel);
-        panel.add(Box.createVerticalStrut(15));
+        contentPanel.add(headerLabel);
+        contentPanel.add(Box.createVerticalStrut(15));
 
         final Set<String> tagsToRemove = new HashSet<>();
         final Color REMOVE_RED = new Color(244, 67, 54);
 
         JPanel tagsPanel = new JPanel(new WrapLayout(FlowLayout.LEFT, 8, 8));
+        tagsPanel.setBackground(BG_CONTENT);
         for (String tag : existingFileTags) {
             final String t = tag;
             JToggleButton b = new JToggleButton(tag);
-            b.setBackground(BG_WHITE);
+            b.setBackground(BG_CONTENT);
             b.setForeground(TEXT_DARK);
             b.setFocusPainted(false);
             b.setOpaque(true);
@@ -1923,7 +1869,7 @@ public final class FileNameTagTool {
                     if (e.getClickCount() == 1 && SwingUtilities.isLeftMouseButton(e)) {
                         if (tagsToRemove.contains(t)) {
                             tagsToRemove.remove(t);
-                            b.setBackground(BG_WHITE);
+                            b.setBackground(BG_CONTENT);
                             b.setForeground(TEXT_DARK);
                             b.setBorderPainted(true);
                             b.setBorder(BorderFactory.createLineBorder(BORDER_GRAY, 1, true));
@@ -1944,23 +1890,31 @@ public final class FileNameTagTool {
         }
 
         JScrollPane tagsScroll = new JScrollPane(tagsPanel, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-        tagsScroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 300));
-        tagsScroll.setAlignmentX(Component.LEFT_ALIGNMENT);
-        panel.add(tagsScroll);
-        panel.add(Box.createVerticalStrut(15));
+        tagsScroll.setBackground(BG_CONTENT);
+        TitledBorder tagsBorder = BorderFactory.createTitledBorder("文件标签");
+        tagsScroll.setBorder(tagsBorder);
+        contentPanel.add(tagsScroll);
+
+        JScrollPane mainScroll = new JScrollPane(contentPanel);
+        mainScroll.setBackground(BG_CONTENT);
+        panel.add(mainScroll, BorderLayout.CENTER);
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        buttonPanel.setBackground(BG_CONTENT);
 
         JButton removeButton = new JButton("移除选中标签");
-        removeButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 14));
+        removeButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        removeButton.setPreferredSize(new Dimension(removeButton.getPreferredSize().width + 20, 36));
+        removeButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        removeButton.setFocusPainted(false);
         removeButton.setForeground(TEXT_LIGHT);
         removeButton.setBackground(REMOVE_RED);
-        removeButton.setFocusPainted(false);
         removeButton.setOpaque(true);
         removeButton.setBorderPainted(false);
-        removeButton.setPreferredSize(new Dimension(140, 40));
-        removeButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        removeButton.setAlignmentX(Component.LEFT_ALIGNMENT);
         removeButton.addActionListener(e -> performRemove(paths, tagsToRemove, parentFrame));
-        panel.add(removeButton);
+
+        buttonPanel.add(removeButton);
+        panel.add(buttonPanel, BorderLayout.SOUTH);
 
         return panel;
     }
