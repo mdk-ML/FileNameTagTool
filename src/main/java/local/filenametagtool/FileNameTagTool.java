@@ -5,6 +5,7 @@ import local.filenametagtool.model.Parsed;
 import local.filenametagtool.operation.FileOperation;
 import local.filenametagtool.manager.TagManager;
 import local.filenametagtool.ui.UITool;
+import local.filenametagtool.util.ConfigUtil;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -39,7 +40,7 @@ public final class FileNameTagTool {
         System.setProperty("java.awt.headless", "false");
 
         // 初始化配置
-        local.filenametagtool.util.ConfigUtil.init();
+        ConfigUtil.init();
 
         final Parsed parsed = parseArgs(args);
         if (parsed.action == null) {
