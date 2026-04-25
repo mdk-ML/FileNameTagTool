@@ -13,36 +13,28 @@ import java.util.Properties;
 
 /**
  * 静态配置工具类，支持直接通过类名调用，无需实例化
+ * 
+ * 使用方法：
+ * 1. 初始化配置（默认路径）：ConfigUtil.init()
+ * 2. 初始化配置（指定路径）：ConfigUtil.init("/path/to/config.conf")
+ * 3. 重新加载配置：ConfigUtil.reload()
+ * 4. 获取配置值：ConfigUtil.get("key", "default")
+ * 5. 保存配置：ConfigUtil.saveFromConfig(config, "comment")
  */
 public final class ConfigUtil {
     
     private static final String DEFAULT_CONFIG_FILE_NAME = "filename-tagtool.conf";
-    private static final Path DEFAULT_CONFIG_PATH;
     
     private static Properties properties;
     private static Path configFilePath;
     
-    static {
-        String userHome = System.getProperty("user.home");
-        Path appDir = Paths.get(userHome, ".filenametagtool");
-        DEFAULT_CONFIG_PATH = appDir.resolve(DEFAULT_CONFIG_FILE_NAME);
-        configFilePath = DEFAULT_CONFIG_PATH;
-        properties = new Properties();
-        loadConfig();
-    }
-    
     private ConfigUtil() {
     }
     
-    public static void init(String configFilePathStr) {
-        if (configFilePathStr != null && !configFilePathStr.isEmpty()) {
-            configFilePath = Paths.get(configFilePathStr).toAbsolutePath();
-            properties = new Properties();
-            loadConfig();
-        }
-    }
-    
-    public static void loadConfig() {
+    /**
+     * 重新加载配置文件并返回Config对象
+     */
+    public static Config reload() {
         Path file = configFilePath;
         if (!Files.exists(file)) {
             Path parent = file.getParent();
@@ -53,20 +45,80 @@ public final class ConfigUtil {
                     System.err.println("创建配置目录失败: " + e.getMessage());
                 }
             }
-            return;
-        }
-        
-        if (!Files.isReadable(file)) {
+        } else if (Files.isReadable(file)) {
+            try (InputStreamReader isr = new InputStreamReader(
+                    new FileInputStream(file.toFile()), StandardCharsets.UTF_8)) {
+                properties.load(isr);
+            } catch (IOException e) {
+                System.err.println("加载配置失败: " + e.getMessage());
+            }
+        } else {
             System.err.println("配置文件不可读: " + file.toAbsolutePath());
-            return;
         }
         
-        try (InputStreamReader isr = new InputStreamReader(
-                new FileInputStream(file.toFile()), StandardCharsets.UTF_8)) {
-            properties.load(isr);
-        } catch (IOException e) {
-            System.err.println("加载配置失败: " + e.getMessage());
+        return loadFromProperties();
+    }
+    
+    /**
+     * 从Properties对象读取值填充到Config对象
+     */
+    public static Config loadFromProperties() {
+        Config config = new Config();
+        config.setWindowX(getInt(Config.KEY_WINDOW_X, 0));
+        config.setWindowY(getInt(Config.KEY_WINDOW_Y, 0));
+        config.setWindowW(getInt(Config.KEY_WINDOW_W, 0));
+        config.setWindowH(getInt(Config.KEY_WINDOW_H, 0));
+        config.setDivider(getInt(Config.KEY_DIVIDER, 0));
+        config.setGroupTagsWindowX(getInt(Config.KEY_GROUP_TAGS_WINDOW_X, 0));
+        config.setGroupTagsWindowY(getInt(Config.KEY_GROUP_TAGS_WINDOW_Y, 0));
+        config.setGroupTagsWindowWidth(getInt(Config.KEY_GROUP_TAGS_WINDOW_WIDTH, 0));
+        config.setGroupTagsWindowHeight(getInt(Config.KEY_GROUP_TAGS_WINDOW_HEIGHT, 0));
+        config.setEverythingPath(get(Config.KEY_EVERYTHING_PATH, ""));
+        config.setIconPath(get(Config.KEY_ICON_PATH, ""));
+        
+        String tagsStr = get(Config.KEY_TAGS, "");
+        if (tagsStr != null && !tagsStr.trim().isEmpty()) {
+            List<String> tags = new ArrayList<>();
+            for (String tag : tagsStr.split(",")) {
+                String trimmed = tag.trim();
+                if (!trimmed.isEmpty()) {
+                    tags.add(trimmed);
+                }
+            }
+            config.setTags(tags);
         }
+        
+        return config;
+    }
+    
+    /**
+     * 初始化配置（默认路径）并返回Config对象
+     */
+    public static Config init() {
+        // 使用默认配置路径
+        String userHome = System.getProperty("user.home");
+        Path appDir = Paths.get(userHome, "filenametagtool");
+        configFilePath = appDir.resolve(DEFAULT_CONFIG_FILE_NAME);
+        
+        // 初始化Properties对象
+        properties = new Properties();
+        
+        return reload();
+    }
+    
+    /**
+     * 初始化配置（指定路径）并返回Config对象
+     * @param configPath 配置文件路径
+     */
+    public static Config init(String configPath) {
+        if (configPath == null || configPath.isEmpty()) {
+            return init();
+        }
+        
+        configFilePath = Paths.get(configPath).toAbsolutePath();
+        properties = new Properties();
+        
+        return reload();
     }
     
     public static String get(String key, String defaultValue) {
@@ -212,35 +264,6 @@ public final class ConfigUtil {
     
     public static void saveFromConfig(Config config) {
         saveFromConfig(config, null);
-    }
-    
-    public static Config loadToConfig() {
-        Config config = new Config();
-        config.setWindowX(getInt(Config.KEY_WINDOW_X, 0));
-        config.setWindowY(getInt(Config.KEY_WINDOW_Y, 0));
-        config.setWindowW(getInt(Config.KEY_WINDOW_W, 0));
-        config.setWindowH(getInt(Config.KEY_WINDOW_H, 0));
-        config.setDivider(getInt(Config.KEY_DIVIDER, 0));
-        config.setGroupTagsWindowX(getInt(Config.KEY_GROUP_TAGS_WINDOW_X, 0));
-        config.setGroupTagsWindowY(getInt(Config.KEY_GROUP_TAGS_WINDOW_Y, 0));
-        config.setGroupTagsWindowWidth(getInt(Config.KEY_GROUP_TAGS_WINDOW_WIDTH, 0));
-        config.setGroupTagsWindowHeight(getInt(Config.KEY_GROUP_TAGS_WINDOW_HEIGHT, 0));
-        config.setEverythingPath(get(Config.KEY_EVERYTHING_PATH, ""));
-        config.setIconPath(get(Config.KEY_ICON_PATH, ""));
-        
-        String tagsStr = get(Config.KEY_TAGS, "");
-        if (tagsStr != null && !tagsStr.trim().isEmpty()) {
-            List<String> tags = new ArrayList<>();
-            for (String tag : tagsStr.split(",")) {
-                String trimmed = tag.trim();
-                if (!trimmed.isEmpty()) {
-                    tags.add(trimmed);
-                }
-            }
-            config.setTags(tags);
-        }
-        
-        return config;
     }
     
     public static boolean containsKey(String key) {

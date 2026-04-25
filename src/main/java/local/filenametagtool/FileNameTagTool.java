@@ -24,12 +24,6 @@ public final class FileNameTagTool {
     private static final Pattern LEADING_TAGS_PATTERN = Pattern.compile("^(?:【[^】]*】)+");
 
     private static final String CONFIG_FILE_NAME = "filename-tagtool.conf";
-    private static final String CFG_WINDOW_X = "window.x";
-    private static final String CFG_WINDOW_Y = "window.y";
-    private static final String CFG_WINDOW_W = "window.w";
-    private static final String CFG_WINDOW_H = "window.h";
-    private static final String CFG_DIVIDER = "ui.divider";
-    private static final String CFG_TAG = "tag";
 
     public static void main(String[] args) {
         // 设置系统的外观
@@ -42,6 +36,9 @@ public final class FileNameTagTool {
             e.printStackTrace();
         }
         System.setProperty("java.awt.headless", "false");
+
+        // 初始化配置
+        ConfigUtil.init(configFilePath().toString());
 
         final Parsed parsed = parseArgs(args);
         if (parsed.action == null) {
@@ -148,7 +145,7 @@ public final class FileNameTagTool {
     }
 
     private static Object[] askTagsWithHistory() {
-        Config cfg = loadConfig();
+        Config cfg = ConfigUtil.reload();
         List<String> history = new ArrayList<>(cfg.getTags());
 
         final JTextArea input = new JTextArea();
@@ -879,7 +876,7 @@ public final class FileNameTagTool {
         incoming = filteredIncoming;
         if (incoming.isEmpty()) return;
 
-        Config cfg = loadConfig();
+        Config cfg = ConfigUtil.reload();
         List<String> old = new ArrayList<>(cfg.getTags());
         LinkedHashSet<String> merged = new LinkedHashSet<>();
         for (String t : old) {
@@ -923,10 +920,6 @@ public final class FileNameTagTool {
         return sb.toString();
     }
 
-    private static Config loadConfig() {
-        ConfigUtil.init(configFilePath().toString());
-        return ConfigUtil.loadToConfig();
-    }
 
     private static void saveConfig(Config cfg) {
         if (cfg == null) return;
@@ -987,7 +980,7 @@ public final class FileNameTagTool {
             }
         }
 
-        Config cfg = loadConfig();
+        Config cfg = ConfigUtil.reload();
         String currentPath = paths.get(0).toString();
 
 
@@ -1140,7 +1133,7 @@ public final class FileNameTagTool {
     }
 
     private static void saveWindowPosition(Window window) {
-        Config cfg = loadConfig();
+        Config cfg = ConfigUtil.reload();
         cfg.setGroupTagsWindowX(window.getX());
         cfg.setGroupTagsWindowY(window.getY());
         cfg.setGroupTagsWindowWidth(window.getWidth());
@@ -1310,7 +1303,7 @@ public final class FileNameTagTool {
     }
 
     private static void createTagManagerWindow(List<Path> paths) {
-        Config cfg = loadConfig();
+        Config cfg = ConfigUtil.reload();
         String currentPath = paths.get(0).toString();
 
         JFrame frame = new JFrame("文件标签管理 " + currentPath);
@@ -1357,6 +1350,18 @@ public final class FileNameTagTool {
             }
         });
 
+        frame.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override
+            public void componentMoved(java.awt.event.ComponentEvent e) {
+                saveWindowPosition(frame);
+            }
+
+            @Override
+            public void componentResized(java.awt.event.ComponentEvent e) {
+                saveWindowPosition(frame);
+            }
+        });
+
         frame.setContentPane(mainContainer);
         frame.setVisible(true);
     }
@@ -1389,7 +1394,7 @@ public final class FileNameTagTool {
         }
 
         String currentPath = paths.get(0).toString();
-        Config cfg = loadConfig();
+        Config cfg = ConfigUtil.reload();
 
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new WrapLayout(FlowLayout.LEFT, 4, 4));
@@ -1516,7 +1521,7 @@ public final class FileNameTagTool {
         contentPanel.setBackground(BG_CONTENT);
 
 
-        Config appConfig = loadConfig();
+        Config appConfig = ConfigUtil.reload();
         List<String> history = new ArrayList<>(appConfig.getTags());
 
         JPanel tagsPanel = new JPanel(new WrapLayout(FlowLayout.LEFT, 12, 12));
