@@ -1,20 +1,20 @@
 package local.filenametagtool;
 
+import local.filenametagtool.manager.TagManager;
 import local.filenametagtool.model.Action;
 import local.filenametagtool.model.Parsed;
 import local.filenametagtool.operation.FileOperation;
-import local.filenametagtool.manager.TagManager;
 import local.filenametagtool.ui.UITool;
 import local.filenametagtool.util.ConfigUtil;
 
+import javax.swing.*;
+import java.awt.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import javax.swing.UIManager;
-import java.awt.Color;
 
 /**
  * 文件名标签工具主类
@@ -128,7 +128,7 @@ public final class FileNameTagTool {
      * @param args 命令行参数
      * @return 解析后的动作和路径
      */
-    private static Parsed parseArgs(String[] args) {
+    static Parsed parseArgs(String[] args) {
         if (args == null || args.length == 0) return new Parsed(null, List.of());
         Action action = Action.fromArg(args[0]);
         List<String> paths = new ArrayList<>();
@@ -150,7 +150,7 @@ public final class FileNameTagTool {
      * @param s 字符串
      * @return Path对象，若转换失败则返回null
      */
-    private static Path safeToPath(String s) {
+    static Path safeToPath(String s) {
         try {
             return Paths.get(s);
         } catch (Exception e) {

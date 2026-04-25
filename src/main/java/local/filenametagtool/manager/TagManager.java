@@ -31,8 +31,8 @@ public final class TagManager {
         incoming = filteredIncoming;
         if (incoming.isEmpty()) return;
 
-        Config cfg = ConfigUtil.reload();
-        List<String> old = new ArrayList<>(cfg.getTags());
+        ConfigUtil.reload();
+        List<String> old = new ArrayList<>(Config.tags);
         LinkedHashSet<String> merged = new LinkedHashSet<>();
         for (String t : old) {
             if (t == null) continue;
@@ -49,8 +49,8 @@ public final class TagManager {
         }
         merged.addAll(incoming);
 
-        cfg.setTags(new ArrayList<>(merged));
-        ConfigUtil.saveFromConfig(cfg, "FileNameTagTool config (auto-generated)");
+        Config.tags = new ArrayList<>(merged);
+        ConfigUtil.saveFromConfig("FileNameTagTool config");
     }
 
     /**

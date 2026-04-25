@@ -1,8 +1,10 @@
 package local.filenametagtool.ui;
 
-import local.filenametagtool.model.Config;
 import local.filenametagtool.component.BadgeToggleButton;
 import local.filenametagtool.component.WrapLayout;
+import local.filenametagtool.manager.TagManager;
+import local.filenametagtool.model.Config;
+import local.filenametagtool.operation.FileOperation;
 import local.filenametagtool.util.ConfigUtil;
 import local.filenametagtool.util.EverythingUtil;
 
@@ -11,10 +13,9 @@ import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.util.ArrayList;
-import java.util.HashSet;
+import java.nio.file.Path;
+import java.util.*;
 import java.util.List;
-import java.util.Set;
 import java.util.regex.Pattern;
 
 public final class UITool {
@@ -80,8 +81,8 @@ public final class UITool {
      * @return 包含标签列表和智能标签集合的数组
      */
     public static Object[] askTagsWithHistory() {
-        Config cfg = ConfigUtil.reload();
-        List<String> history = new ArrayList<>(cfg.getTags());
+        ConfigUtil.reload();
+        List<String> history = new ArrayList<>(Config.tags);
 
         final JTextArea input = new JTextArea();
         input.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 14));
@@ -138,7 +139,8 @@ public final class UITool {
                 }
                 if (b.isSelected()) {
                     String currentText = input.getText();
-                    if (currentText.equals("输入自定义标签，多个标签请用空格分隔，例如：紧急任务 Q2季度报告 客户反馈") || currentText.trim().isEmpty()) {
+                    if (currentText.equals("输入自定义标签，多个标签请用空格分隔，例如：紧急任务 Q2季度报告 客户反馈") || currentText.trim()
+                                                                                                                                  .isEmpty()) {
                         input.setText(t);
                         input.setForeground(TEXT_DARK);
                     } else {
@@ -192,39 +194,36 @@ public final class UITool {
         smartTagsPanel.setBackground(BG_WHITE);
 
         // 当前日期标签
-        JPanel dateTagPanel = createSmartTagPanel("📅", "当前日期", java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")),
-                () -> {
-                    String dateTag = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
-                    smartTags.add(dateTag);
-                    return dateTag;
-                });
+        JPanel dateTagPanel = createSmartTagPanel("📅", "当前日期", java.time.LocalDate.now()
+                                                                                      .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")), () -> {
+            String dateTag = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
+            smartTags.add(dateTag);
+            return dateTag;
+        });
         smartTagsPanel.add(dateTagPanel);
 
         // 最近使用标签
-        JPanel recentTagPanel = createSmartTagPanel("🔄", "最近使用", "工作, 重要",
-                () -> {
-                    smartTags.add("工作");
-                    smartTags.add("重要");
-                    return "工作 重要";
-                });
+        JPanel recentTagPanel = createSmartTagPanel("🔄", "最近使用", "工作, 重要", () -> {
+            smartTags.add("工作");
+            smartTags.add("重要");
+            return "工作 重要";
+        });
         smartTagsPanel.add(recentTagPanel);
 
         // 热门标签
-        JPanel hotTagPanel = createSmartTagPanel("🔥", "热门标签", "项目A 会议",
-                () -> {
-                    smartTags.add("项目A");
-                    smartTags.add("会议");
-                    return "项目A 会议";
-                });
+        JPanel hotTagPanel = createSmartTagPanel("🔥", "热门标签", "项目A 会议", () -> {
+            smartTags.add("项目A");
+            smartTags.add("会议");
+            return "项目A 会议";
+        });
         smartTagsPanel.add(hotTagPanel);
 
         // 推荐标签
-        JPanel recommendTagPanel = createSmartTagPanel("💡", "推荐标签", "文档 计划",
-                () -> {
-                    smartTags.add("文档");
-                    smartTags.add("计划");
-                    return "文档 计划";
-                });
+        JPanel recommendTagPanel = createSmartTagPanel("💡", "推荐标签", "文档 计划", () -> {
+            smartTags.add("文档");
+            smartTags.add("计划");
+            return "文档 计划";
+        });
         smartTagsPanel.add(recommendTagPanel);
 
         JPanel inputLabelPanel = new JPanel();
@@ -329,14 +328,14 @@ public final class UITool {
         dialog.setResizable(true);
         dialog.setMinimumSize(new Dimension(800, 600));
 
-        if (cfg.getWindowW() > 0 && cfg.getWindowH() > 0) {
-            dialog.setBounds(cfg.getWindowX(), cfg.getWindowY(), cfg.getWindowW(), cfg.getWindowH());
+        if (Config.windowW > 0 && Config.windowH > 0) {
+            dialog.setBounds(Config.windowX, Config.windowY, Config.windowW, Config.windowH);
         } else {
             dialog.pack();
             dialog.setLocationRelativeTo(null);
             dialog.setSize(new Dimension(840, 680));
         }
-        if (cfg.getDivider() > 0) split.setDividerLocation(cfg.getDivider());
+        if (Config.divider > 0) split.setDividerLocation(Config.divider);
         else split.setDividerLocation(0.5);
 
         dialog.getRootPane().setDefaultButton(ok);
@@ -347,12 +346,12 @@ public final class UITool {
             input.selectAll();
         });
 
-        cfg.setWindowX(dialog.getX());
-        cfg.setWindowY(dialog.getY());
-        cfg.setWindowW(dialog.getWidth());
-        cfg.setWindowH(dialog.getHeight());
-        cfg.setDivider(split.getDividerLocation());
-        ConfigUtil.saveFromConfig(cfg, "FileNameTagTool config (auto-generated)");
+        Config.windowX = dialog.getX();
+        Config.windowY = dialog.getY();
+        Config.windowW = dialog.getWidth();
+        Config.windowH = dialog.getHeight();
+        Config.divider = split.getDividerLocation();
+        ConfigUtil.saveFromConfig("FileNameTagTool config");
 
         Object cancelled = input.getClientProperty("cancelled");
         if (Boolean.TRUE.equals(cancelled)) return null;
@@ -485,14 +484,15 @@ public final class UITool {
      *
      * @param paths 文件路径列表
      */
-    public static void createTagManagerWindow(List<java.nio.file.Path> paths) {
-        Config cfg = ConfigUtil.reload();
+    public static void createTagManagerWindow(List<Path> paths) {
+        ConfigUtil.reload();
         String currentPath = paths.get(0).toString();
 
         JFrame frame = new JFrame("文件标签管理 " + currentPath);
         List<Image> icons = new ArrayList<>();
         try {
-            String iconBasePath = cfg.getIconPath();
+            String iconBasePath = Config.iconPath;
+            System.out.println(iconBasePath + "tags-16.png");
             icons.add(new ImageIcon(iconBasePath + "tags-16.png").getImage());
             icons.add(new ImageIcon(iconBasePath + "tags-32.png").getImage());
             icons.add(new ImageIcon(iconBasePath + "tags-48.png").getImage());
@@ -504,14 +504,14 @@ public final class UITool {
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         frame.setResizable(true);
 
-        if (cfg.getGroupTagsWindowWidth() > 0 && cfg.getGroupTagsWindowHeight() > 0) {
-            frame.setSize(cfg.getGroupTagsWindowWidth(), cfg.getGroupTagsWindowHeight());
+        if (Config.groupTagsWindowWidth > 0 && Config.groupTagsWindowHeight > 0) {
+            frame.setSize(Config.groupTagsWindowWidth, Config.groupTagsWindowHeight);
         } else {
             frame.setSize(800, 600);
         }
 
-        if (cfg.getGroupTagsWindowX() > 0 && cfg.getGroupTagsWindowY() > 0) {
-            frame.setLocation(cfg.getGroupTagsWindowX(), cfg.getGroupTagsWindowY());
+        if (Config.groupTagsWindowX > 0 && Config.groupTagsWindowY > 0) {
+            frame.setLocation(Config.groupTagsWindowX, Config.groupTagsWindowY);
         } else {
             frame.setLocationRelativeTo(null);
         }
@@ -584,7 +584,7 @@ public final class UITool {
         }
 
         String currentPath = paths.get(0).toString();
-        Config cfg = ConfigUtil.reload();
+        ConfigUtil.reload();
 
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new WrapLayout(FlowLayout.LEFT, 4, 4));
@@ -624,7 +624,7 @@ public final class UITool {
                             }
                             String searchQuery = currentPath + " 【" + tag + "】";
                             try {
-                                EverythingUtil.launchEverythingUI(searchQuery, cfg.getEverythingPath());
+                                EverythingUtil.launchEverythingUI(searchQuery, Config.everythingPath);
                             } catch (Exception ex) {
                                 ex.printStackTrace();
                             }
@@ -654,11 +654,8 @@ public final class UITool {
             List<String> selectedTags = new ArrayList<>();
             for (BadgeToggleButton toggleButton : toggleButtons) {
                 if (toggleButton.isSelected()) {
-                    String tagText = toggleButton.getText();
-                    if (tagText.contains(" (")) {
-                        String tag = tagText.substring(0, tagText.indexOf(" "));
-                        selectedTags.add(tag);
-                    }
+                    String tagText = toggleButton.getText().trim(); // 去除空格
+                    selectedTags.add(tagText);
                 }
             }
             if (!selectedTags.isEmpty()) {
@@ -667,7 +664,8 @@ public final class UITool {
                     queryBuilder.append(" 【").append(tag).append("】");
                 }
                 try {
-                    EverythingUtil.launchEverythingUI(queryBuilder.toString(), cfg.getEverythingPath());
+                    System.out.println(queryBuilder.toString());
+                    EverythingUtil.launchEverythingUI(queryBuilder.toString(), Config.everythingPath);
                 } catch (Exception ex) {
                     ex.printStackTrace();
                 }
@@ -707,8 +705,8 @@ public final class UITool {
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
         contentPanel.setBackground(BG_CONTENT);
 
-        Config appConfig = ConfigUtil.reload();
-        List<String> history = new ArrayList<>(appConfig.getTags());
+        ConfigUtil.reload();
+        List<String> history = new ArrayList<>(Config.tags);
 
         JPanel tagsPanel = new JPanel(new WrapLayout(FlowLayout.LEFT, 12, 12));
         tagsPanel.setBackground(BG_CONTENT);
@@ -986,12 +984,11 @@ public final class UITool {
      * @param window 窗口
      */
     private static void saveWindowPosition(Window window) {
-        Config cfg = ConfigUtil.reload();
-        cfg.setGroupTagsWindowX(window.getX());
-        cfg.setGroupTagsWindowY(window.getY());
-        cfg.setGroupTagsWindowWidth(window.getWidth());
-        cfg.setGroupTagsWindowHeight(window.getHeight());
-        ConfigUtil.saveFromConfig(cfg, "FileNameTagTool config (auto-generated)");
+        Config.groupTagsWindowX = window.getX();
+        Config.groupTagsWindowY = window.getY();
+        Config.groupTagsWindowWidth = window.getWidth();
+        Config.groupTagsWindowHeight = window.getHeight();
+        ConfigUtil.saveFromConfig("FileNameTagTool config");
     }
 
     /**
