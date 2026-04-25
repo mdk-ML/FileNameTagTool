@@ -12,6 +12,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import javax.swing.UIManager;
+import java.awt.Color;
 
 /**
  * 文件名标签工具主类
@@ -25,6 +27,17 @@ public final class FileNameTagTool {
      * @param args 命令行参数
      */
     public static void main(String[] args) {
+        // 设置系统的外观
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            // 取消标签页的焦点指示器
+            UIManager.put("TabbedPane.focus", new Color(0, 0, 0, 0));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        System.setProperty("java.awt.headless", "false");
+
         // 初始化配置
         local.filenametagtool.util.ConfigUtil.init();
 
