@@ -2,6 +2,10 @@ package local.filenametagtool;
 
 import local.filenametagtool.component.BadgeToggleButton;
 import local.filenametagtool.component.WrapLayout;
+import local.filenametagtool.model.Action;
+import local.filenametagtool.model.Config;
+import local.filenametagtool.model.Parsed;
+import local.filenametagtool.util.ConfigUtil;
 import local.filenametagtool.util.EverythingUtil;
 
 import javax.swing.*;
@@ -11,7 +15,6 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 import java.util.List;
@@ -27,34 +30,6 @@ public final class FileNameTagTool {
     private static final String CFG_WINDOW_H = "window.h";
     private static final String CFG_DIVIDER = "ui.divider";
     private static final String CFG_TAG = "tag";
-
-    private enum Action {
-        ADD("add"), REMOVE_ALL("removeAll"), REMOVE("remove"), NEW_VERSION("newVersion"), COPY_WITHOUT_TAGS("copyWithoutTags"), SEARCH("search");
-
-        final String arg;
-
-        Action(String arg) {
-            this.arg = arg;
-        }
-
-        static Action fromArg(String s) {
-            if (s == null) return null;
-            for (Action a : values()) {
-                if (a.arg.equalsIgnoreCase(s.trim())) return a;
-            }
-            return null;
-        }
-    }
-
-    private static final class Parsed {
-        final Action action;
-        final List<String> paths;
-
-        Parsed(Action action, List<String> paths) {
-            this.action = action;
-            this.paths = paths;
-        }
-    }
 
     public static void main(String[] args) {
         // 设置系统的外观
@@ -173,8 +148,8 @@ public final class FileNameTagTool {
     }
 
     private static Object[] askTagsWithHistory() {
-        AppConfig cfg = loadConfig();
-        List<String> history = new ArrayList<>(cfg.tags);
+        Config cfg = loadConfig();
+        List<String> history = new ArrayList<>(cfg.getTags());
 
         final JTextArea input = new JTextArea();
         input.setFont(new java.awt.Font("Microsoft YaHei UI", java.awt.Font.PLAIN, 14));
@@ -585,14 +560,14 @@ public final class FileNameTagTool {
         dialog.setResizable(true);
         dialog.setMinimumSize(new Dimension(800, 600));
 
-        if (cfg.windowW > 0 && cfg.windowH > 0) {
-            dialog.setBounds(cfg.windowX, cfg.windowY, cfg.windowW, cfg.windowH);
+        if (cfg.getWindowW() > 0 && cfg.getWindowH() > 0) {
+            dialog.setBounds(cfg.getWindowX(), cfg.getWindowY(), cfg.getWindowW(), cfg.getWindowH());
         } else {
             dialog.pack();
             dialog.setLocationRelativeTo(null);
             dialog.setSize(new Dimension(840, 680));
         }
-        if (cfg.divider > 0) split.setDividerLocation(cfg.divider);
+        if (cfg.getDivider() > 0) split.setDividerLocation(cfg.getDivider());
         else split.setDividerLocation(0.5);
 
         dialog.getRootPane().setDefaultButton(ok);
@@ -603,11 +578,11 @@ public final class FileNameTagTool {
             input.selectAll();
         });
 
-        cfg.windowX = dialog.getX();
-        cfg.windowY = dialog.getY();
-        cfg.windowW = dialog.getWidth();
-        cfg.windowH = dialog.getHeight();
-        cfg.divider = split.getDividerLocation();
+        cfg.setWindowX(dialog.getX());
+        cfg.setWindowY(dialog.getY());
+        cfg.setWindowW(dialog.getWidth());
+        cfg.setWindowH(dialog.getHeight());
+        cfg.setDivider(split.getDividerLocation());
         saveConfig(cfg);
 
         Object cancelled = input.getClientProperty("cancelled");
@@ -904,8 +879,8 @@ public final class FileNameTagTool {
         incoming = filteredIncoming;
         if (incoming.isEmpty()) return;
 
-        AppConfig cfg = loadConfig();
-        List<String> old = new ArrayList<>(cfg.tags);
+        Config cfg = loadConfig();
+        List<String> old = new ArrayList<>(cfg.getTags());
         LinkedHashSet<String> merged = new LinkedHashSet<>();
         for (String t : old) {
             if (t == null) continue;
@@ -922,7 +897,7 @@ public final class FileNameTagTool {
         }
         merged.addAll(incoming);
 
-        cfg.tags = new ArrayList<>(merged);
+        cfg.setTags(new ArrayList<>(merged));
         saveConfig(cfg);
     }
 
@@ -948,97 +923,14 @@ public final class FileNameTagTool {
         return sb.toString();
     }
 
-    private static final class AppConfig {
-        int windowX;
-        int windowY;
-        int windowW;
-        int windowH;
-        int divider;
-        int groupTagsWindowX;
-        int groupTagsWindowY;
-        int groupTagsWindowWidth;
-        int groupTagsWindowHeight;
-        String everythingPath = "C:\\Program Files\\Everything\\Everything.exe";
-        String iconPath = "C:\\Users\\MU\\Documents\\FileNameTagTool\\ico\\";
-        List<String> tags = new ArrayList<>();
+    private static Config loadConfig() {
+        ConfigUtil.init(configFilePath().toString());
+        return ConfigUtil.loadToConfig();
     }
 
-    private static AppConfig loadConfig() {
-        AppConfig cfg = new AppConfig();
-        Path file = configFilePath();
-        if (!Files.exists(file)) return cfg;
-
-        try {
-            List<String> lines = Files.readAllLines(file, StandardCharsets.UTF_8);
-            for (String line : lines) {
-                if (line == null) continue;
-                String s = line.trim();
-                if (s.isEmpty() || s.startsWith("#") || s.startsWith(";")) continue;
-                int eq = s.indexOf('=');
-                if (eq <= 0) continue;
-                String k = s.substring(0, eq).trim();
-                String v = s.substring(eq + 1).trim();
-
-                if (CFG_TAG.equalsIgnoreCase(k)) {
-                    if (!v.isEmpty()) cfg.tags.add(v);
-                    continue;
-                }
-
-                if (CFG_WINDOW_X.equalsIgnoreCase(k)) cfg.windowX = parseIntSafe(v);
-                else if (CFG_WINDOW_Y.equalsIgnoreCase(k)) cfg.windowY = parseIntSafe(v);
-                else if (CFG_WINDOW_W.equalsIgnoreCase(k)) cfg.windowW = parseIntSafe(v);
-                else if (CFG_WINDOW_H.equalsIgnoreCase(k)) cfg.windowH = parseIntSafe(v);
-                else if (CFG_DIVIDER.equalsIgnoreCase(k)) cfg.divider = parseIntSafe(v);
-                else if ("groupTagsWindowX".equalsIgnoreCase(k)) cfg.groupTagsWindowX = parseIntSafe(v);
-                else if ("groupTagsWindowY".equalsIgnoreCase(k)) cfg.groupTagsWindowY = parseIntSafe(v);
-                else if ("groupTagsWindowWidth".equalsIgnoreCase(k)) cfg.groupTagsWindowWidth = parseIntSafe(v);
-                else if ("groupTagsWindowHeight".equalsIgnoreCase(k)) cfg.groupTagsWindowHeight = parseIntSafe(v);
-                else if ("everythingPath".equalsIgnoreCase(k)) cfg.everythingPath = v;
-                else if ("iconPath".equalsIgnoreCase(k)) cfg.iconPath = v;
-            }
-        } catch (Exception ignored) {
-        }
-
-        cfg.tags = normalizeTags(cfg.tags);
-        return cfg;
-    }
-
-    private static void saveConfig(AppConfig cfg) {
+    private static void saveConfig(Config cfg) {
         if (cfg == null) return;
-        try {
-            Path file = configFilePath();
-            Path parent = file.getParent();
-            if (parent != null) Files.createDirectories(parent);
-
-            List<String> out = new ArrayList<>();
-            out.add("# FileNameTagTool config (auto-generated)");
-            out.add(CFG_WINDOW_X + "=" + cfg.windowX);
-            out.add(CFG_WINDOW_Y + "=" + cfg.windowY);
-            out.add(CFG_WINDOW_W + "=" + cfg.windowW);
-            out.add(CFG_WINDOW_H + "=" + cfg.windowH);
-            out.add(CFG_DIVIDER + "=" + cfg.divider);
-            out.add("groupTagsWindowX=" + cfg.groupTagsWindowX);
-            out.add("groupTagsWindowY=" + cfg.groupTagsWindowY);
-            out.add("groupTagsWindowWidth=" + cfg.groupTagsWindowWidth);
-            out.add("groupTagsWindowHeight=" + cfg.groupTagsWindowHeight);
-            out.add("everythingPath=" + cfg.everythingPath);
-            out.add("iconPath=" + cfg.iconPath);
-            out.add("");
-            for (String t : normalizeTags(cfg.tags)) {
-                out.add(CFG_TAG + "=" + t);
-            }
-
-            Files.write(file, out, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-        } catch (Exception ignored) {
-        }
-    }
-
-    private static int parseIntSafe(String v) {
-        try {
-            return Integer.parseInt(v);
-        } catch (Exception e) {
-            return 0;
-        }
+        ConfigUtil.saveFromConfig(cfg, "FileNameTagTool config (auto-generated)");
     }
 
     private static Path configFilePath() {
@@ -1095,14 +987,14 @@ public final class FileNameTagTool {
             }
         }
 
-        AppConfig cfg = loadConfig();
+        Config cfg = loadConfig();
         String currentPath = paths.get(0).toString();
 
 
         JFrame frame = new JFrame(currentPath);
         List<Image> icons = new ArrayList<>();
         try {
-            String iconBasePath = cfg.iconPath;
+            String iconBasePath = cfg.getIconPath();
             icons.add(new ImageIcon(iconBasePath + "tags-16.png").getImage());
             icons.add(new ImageIcon(iconBasePath + "tags-32.png").getImage());
             icons.add(new ImageIcon(iconBasePath + "tags-48.png").getImage());
@@ -1114,14 +1006,14 @@ public final class FileNameTagTool {
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         frame.setResizable(true);
 
-        if (cfg.groupTagsWindowWidth > 0 && cfg.groupTagsWindowHeight > 0) {
-            frame.setSize(cfg.groupTagsWindowWidth, cfg.groupTagsWindowHeight);
+        if (cfg.getGroupTagsWindowWidth() > 0 && cfg.getGroupTagsWindowHeight() > 0) {
+            frame.setSize(cfg.getGroupTagsWindowWidth(), cfg.getGroupTagsWindowHeight());
         } else {
             frame.setSize(450, 400);
         }
 
-        if (cfg.groupTagsWindowX > 0 && cfg.groupTagsWindowY > 0) {
-            frame.setLocation(cfg.groupTagsWindowX, cfg.groupTagsWindowY);
+        if (cfg.getGroupTagsWindowX() > 0 && cfg.getGroupTagsWindowY() > 0) {
+            frame.setLocation(cfg.getGroupTagsWindowX(), cfg.getGroupTagsWindowY());
         } else {
             frame.setLocationRelativeTo(null);
         }
@@ -1172,7 +1064,7 @@ public final class FileNameTagTool {
                             }
                             String searchQuery = currentPath + " 【" + tag + "】";
                             try {
-                                EverythingUtil.launchEverythingUI(searchQuery, cfg.everythingPath);
+                                EverythingUtil.launchEverythingUI(searchQuery, cfg.getEverythingPath());
                             } catch (Exception ex) {
                                 ex.printStackTrace();
                             }
@@ -1213,7 +1105,7 @@ public final class FileNameTagTool {
                     queryBuilder.append(" 【").append(tag).append("】");
                 }
                 try {
-                    EverythingUtil.launchEverythingUI(queryBuilder.toString(), cfg.everythingPath);
+                    EverythingUtil.launchEverythingUI(queryBuilder.toString(), cfg.getEverythingPath());
                 } catch (Exception ex) {
                     ex.printStackTrace();
                 }
@@ -1248,11 +1140,11 @@ public final class FileNameTagTool {
     }
 
     private static void saveWindowPosition(Window window) {
-        AppConfig cfg = loadConfig();
-        cfg.groupTagsWindowX = window.getX();
-        cfg.groupTagsWindowY = window.getY();
-        cfg.groupTagsWindowWidth = window.getWidth();
-        cfg.groupTagsWindowHeight = window.getHeight();
+        Config cfg = loadConfig();
+        cfg.setGroupTagsWindowX(window.getX());
+        cfg.setGroupTagsWindowY(window.getY());
+        cfg.setGroupTagsWindowWidth(window.getWidth());
+        cfg.setGroupTagsWindowHeight(window.getHeight());
         saveConfig(cfg);
     }
 
@@ -1418,13 +1310,13 @@ public final class FileNameTagTool {
     }
 
     private static void createTagManagerWindow(List<Path> paths) {
-        AppConfig cfg = loadConfig();
+        Config cfg = loadConfig();
         String currentPath = paths.get(0).toString();
 
         JFrame frame = new JFrame("文件标签管理 " + currentPath);
         List<Image> icons = new ArrayList<>();
         try {
-            String iconBasePath = cfg.iconPath;
+            String iconBasePath = cfg.getIconPath();
             icons.add(new ImageIcon(iconBasePath + "tags-16.png").getImage());
             icons.add(new ImageIcon(iconBasePath + "tags-32.png").getImage());
             icons.add(new ImageIcon(iconBasePath + "tags-48.png").getImage());
@@ -1436,14 +1328,14 @@ public final class FileNameTagTool {
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         frame.setResizable(true);
 
-        if (cfg.groupTagsWindowWidth > 0 && cfg.groupTagsWindowHeight > 0) {
-            frame.setSize(cfg.groupTagsWindowWidth, cfg.groupTagsWindowHeight);
+        if (cfg.getGroupTagsWindowWidth() > 0 && cfg.getGroupTagsWindowHeight() > 0) {
+            frame.setSize(cfg.getGroupTagsWindowWidth(), cfg.getGroupTagsWindowHeight());
         } else {
             frame.setSize(800, 600);
         }
 
-        if (cfg.groupTagsWindowX > 0 && cfg.groupTagsWindowY > 0) {
-            frame.setLocation(cfg.groupTagsWindowX, cfg.groupTagsWindowY);
+        if (cfg.getGroupTagsWindowX() > 0 && cfg.getGroupTagsWindowY() > 0) {
+            frame.setLocation(cfg.getGroupTagsWindowX(), cfg.getGroupTagsWindowY());
         } else {
             frame.setLocationRelativeTo(null);
         }
@@ -1497,7 +1389,7 @@ public final class FileNameTagTool {
         }
 
         String currentPath = paths.get(0).toString();
-        AppConfig cfg = loadConfig();
+        Config cfg = loadConfig();
 
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new WrapLayout(FlowLayout.LEFT, 4, 4));
@@ -1541,7 +1433,7 @@ public final class FileNameTagTool {
                             }
                             String searchQuery = currentPath + " 【" + tag + "】";
                             try {
-                                EverythingUtil.launchEverythingUI(searchQuery, cfg.everythingPath);
+                                EverythingUtil.launchEverythingUI(searchQuery, cfg.getEverythingPath());
                             } catch (Exception ex) {
                                 ex.printStackTrace();
                             }
@@ -1590,7 +1482,7 @@ public final class FileNameTagTool {
                     queryBuilder.append(" 【").append(tag).append("】");
                 }
                 try {
-                    EverythingUtil.launchEverythingUI(queryBuilder.toString(), cfg.everythingPath);
+                    EverythingUtil.launchEverythingUI(queryBuilder.toString(), cfg.getEverythingPath());
                 } catch (Exception ex) {
                     ex.printStackTrace();
                 }
@@ -1624,8 +1516,8 @@ public final class FileNameTagTool {
         contentPanel.setBackground(BG_CONTENT);
 
 
-        AppConfig appConfig = loadConfig();
-        List<String> history = new ArrayList<>(appConfig.tags);
+        Config appConfig = loadConfig();
+        List<String> history = new ArrayList<>(appConfig.getTags());
 
         JPanel tagsPanel = new JPanel(new WrapLayout(FlowLayout.LEFT, 12, 12));
         tagsPanel.setBackground(BG_CONTENT);
