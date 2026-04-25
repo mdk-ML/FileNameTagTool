@@ -1,4 +1,4 @@
-package local.filenametagtool.model;
+package cn.mdkml.filenametagtool.model;
 
 import java.util.List;
 

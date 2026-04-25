@@ -1,4 +1,4 @@
-package local.filenametagtool.operation;
+package cn.mdkml.filenametagtool.util;
 
 import java.io.IOException;
 import java.nio.file.*;
@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-public final class FileOperation {
+public final class FileUtil {
 
     private static final Pattern LEADING_TAGS_PATTERN = Pattern.compile("^(?:【[^】]*】)+");
 

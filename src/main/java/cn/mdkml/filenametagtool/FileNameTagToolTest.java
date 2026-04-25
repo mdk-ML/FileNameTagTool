@@ -1,28 +1,18 @@
-package local.filenametagtool;
+package cn.mdkml.filenametagtool;
 
-import local.filenametagtool.model.Action;
-import local.filenametagtool.model.Parsed;
-import local.filenametagtool.ui.UITool;
-import local.filenametagtool.util.ConfigUtil;
+import cn.mdkml.filenametagtool.model.Action;
+import cn.mdkml.filenametagtool.model.Parsed;
+import cn.mdkml.filenametagtool.util.SwingUtil;
+import cn.mdkml.filenametagtool.util.ConfigUtil;
 
-import javax.swing.*;
-import java.awt.*;
 import java.nio.file.Path;
 import java.util.List;
 
 public class FileNameTagToolTest {
     
     public static void testSearch() {
-        // 设置系统的外观
-        try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-            // 取消标签页的焦点指示器
-            UIManager.put("TabbedPane.focus", new Color(0, 0, 0, 0));
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        System.setProperty("java.awt.headless", "false");
+      // 初始化系统外观
+        SwingUtil.initLookAndFeel();
         
         // 初始化配置
         ConfigUtil.init();
@@ -48,7 +38,7 @@ public class FileNameTagToolTest {
         
         // 执行搜索操作
         if (!existing.isEmpty() && parsed.action == Action.SEARCH) {
-            UITool.createTagManagerWindow(existing);
+            SwingUtil.createTagManagerWindow(existing);
         } else {
             System.out.println("没有获取到有效的文件/文件夹路径。");
         }

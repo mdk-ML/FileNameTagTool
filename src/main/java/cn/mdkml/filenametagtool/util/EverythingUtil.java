@@ -1,4 +1,4 @@
-package local.filenametagtool.util;
+package cn.mdkml.filenametagtool.util;
 
 import com.sun.jna.Library;
 import com.sun.jna.Native;

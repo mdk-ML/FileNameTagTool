@@ -1,14 +1,13 @@
-package local.filenametagtool.manager;
+package cn.mdkml.filenametagtool.util;
 
-import local.filenametagtool.model.Config;
-import local.filenametagtool.util.ConfigUtil;
+import cn.mdkml.filenametagtool.model.Config;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-public final class TagManager {
+public final class TagUtil {
 
     /**
      * 记住标签到配置中
@@ -50,7 +49,7 @@ public final class TagManager {
         merged.addAll(incoming);
 
         Config.tags = new ArrayList<>(merged);
-        ConfigUtil.saveFromConfig("FileNameTagTool config");
+        ConfigUtil.save();
     }
 
     /**

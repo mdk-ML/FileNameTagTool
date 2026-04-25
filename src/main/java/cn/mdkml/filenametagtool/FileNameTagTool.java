@@ -1,14 +1,12 @@
-package local.filenametagtool;
+package cn.mdkml.filenametagtool;
 
-import local.filenametagtool.manager.TagManager;
-import local.filenametagtool.model.Action;
-import local.filenametagtool.model.Parsed;
-import local.filenametagtool.operation.FileOperation;
-import local.filenametagtool.ui.UITool;
-import local.filenametagtool.util.ConfigUtil;
+import cn.mdkml.filenametagtool.util.TagUtil;
+import cn.mdkml.filenametagtool.model.Action;
+import cn.mdkml.filenametagtool.model.Parsed;
+import cn.mdkml.filenametagtool.util.FileUtil;
+import cn.mdkml.filenametagtool.util.SwingUtil;
+import cn.mdkml.filenametagtool.util.ConfigUtil;
 
-import javax.swing.*;
-import java.awt.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -28,23 +26,15 @@ public final class FileNameTagTool {
      * @param args 命令行参数
      */
     public static void main(String[] args) {
-        // 设置系统的外观
-        try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-            // 取消标签页的焦点指示器
-            UIManager.put("TabbedPane.focus", new Color(0, 0, 0, 0));
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        System.setProperty("java.awt.headless", "false");
+        // 初始化系统外观
+        SwingUtil.initLookAndFeel();
 
         // 初始化配置
         ConfigUtil.init();
 
         final Parsed parsed = parseArgs(args);
         if (parsed.action == null) {
-            UITool.showMessage("缺少动作参数，请用：add | removeAll | newVersion | copyWithoutTags。", "提示");
+            SwingUtil.showMessage("缺少动作参数，请用：add | removeAll | newVersion | copyWithoutTags。", "提示");
             return;
         }
 
@@ -59,32 +49,32 @@ public final class FileNameTagTool {
                 .toList();
 
         if (existing.isEmpty()) {
-            UITool.showMessage("没有获取到有效的文件/文件夹路径。请先在资源管理器中选中后再点击菜单。", "提示");
+            SwingUtil.showMessage("没有获取到有效的文件/文件夹路径。请先在资源管理器中选中后再点击菜单。", "提示");
             return;
         }
 
         if (action == Action.SEARCH) {
-            UITool.createTagManagerWindow(existing);
+            SwingUtil.createTagManagerWindow(existing);
             return;
         }
 
         final List<String> addTags;
         final Set<String> removeTags;
         if (action == Action.ADD) {
-            final Object[] result = UITool.askTagsWithHistory();
+            final Object[] result = SwingUtil.askTagsWithHistory();
             if (result == null) return;
 
             final List<String> tags = (List<String>) result[0];
             final Set<String> smartTags = (Set<String>) result[1];
 
-            final List<String> normalized = TagManager.normalizeTags(tags);
+            final List<String> normalized = TagUtil.normalizeTags(tags);
             if (normalized.isEmpty()) return;
 
-            TagManager.rememberTags(normalized, smartTags);
+            TagUtil.rememberTags(normalized, smartTags);
             addTags = normalized;
             removeTags = null;
         } else if (action == Action.REMOVE) {
-            removeTags = UITool.askTagsToRemove(existing);
+            removeTags = SwingUtil.askTagsToRemove(existing);
             if (removeTags == null) return;
             addTags = null;
         } else {
@@ -99,15 +89,15 @@ public final class FileNameTagTool {
                 try {
                     final boolean ok;
                     if (action == Action.ADD) {
-                        ok = FileOperation.addTagsToNamePrefix(p, addTags);
+                        ok = FileUtil.addTagsToNamePrefix(p, addTags);
                     } else if (action == Action.REMOVE) {
-                        ok = FileOperation.removeTags(p, removeTags);
+                        ok = FileUtil.removeTags(p, removeTags);
                     } else if (action == Action.NEW_VERSION) {
-                        ok = FileOperation.createNewVersion(p);
+                        ok = FileUtil.createNewVersion(p);
                     } else if (action == Action.COPY_WITHOUT_TAGS) {
-                        ok = FileOperation.copyWithoutTags(p);
+                        ok = FileUtil.copyWithoutTags(p);
                     } else {
-                        ok = FileOperation.removeAllTags(p);
+                        ok = FileUtil.removeAllTags(p);
                     }
                     if (ok) renamed++;
                     else skipped++;
@@ -116,9 +106,9 @@ public final class FileNameTagTool {
                 }
             }
 
-            UITool.showMessage("选择项：" + existing.size() + "\n成功重命名：" + renamed + "\n跳过/失败：" + skipped, "完成");
+            SwingUtil.showMessage("选择项：" + existing.size() + "\n成功重命名：" + renamed + "\n跳过/失败：" + skipped, "完成");
         } catch (Exception e) {
-            UITool.showMessage(String.valueOf(e), "错误");
+            SwingUtil.showMessage(String.valueOf(e), "错误");
         }
     }
 

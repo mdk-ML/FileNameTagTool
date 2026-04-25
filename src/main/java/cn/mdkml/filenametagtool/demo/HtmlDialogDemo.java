@@ -1,4 +1,4 @@
-package local.filenametagtool.demo;
+package cn.mdkml.filenametagtool.demo;
 
 import javax.swing.*;
 

@@ -1,12 +1,8 @@
-package local.filenametagtool.ui;
+package cn.mdkml.filenametagtool.util;
 
-import local.filenametagtool.component.BadgeToggleButton;
-import local.filenametagtool.component.WrapLayout;
-import local.filenametagtool.manager.TagManager;
-import local.filenametagtool.model.Config;
-import local.filenametagtool.operation.FileOperation;
-import local.filenametagtool.util.ConfigUtil;
-import local.filenametagtool.util.EverythingUtil;
+import cn.mdkml.filenametagtool.component.BadgeToggleButton;
+import cn.mdkml.filenametagtool.component.WrapLayout;
+import cn.mdkml.filenametagtool.model.Config;
 
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
@@ -18,7 +14,7 @@ import java.util.*;
 import java.util.List;
 import java.util.regex.Pattern;
 
-public final class UITool {
+public final class SwingUtil {
 
     private static final Color GRADIENT_START = new Color(74, 144, 226);
     private static final Color BG_LIGHT = new Color(248, 249, 250);
@@ -28,6 +24,19 @@ public final class UITool {
     private static final Color BORDER_GRAY = new Color(220, 220, 220);
     private static final Color TEXT_DARK = new Color(51, 51, 51);
     private static final Color TEXT_LIGHT = Color.WHITE;
+
+    /**
+     * 初始化系统外观设置
+     */
+    public static void initLookAndFeel() {
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            UIManager.put("TabbedPane.focus", new Color(0, 0, 0, 0));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        System.setProperty("java.awt.headless", "false");
+    }
 
     /**
      * 显示消息弹窗
@@ -351,7 +360,7 @@ public final class UITool {
         Config.windowW = dialog.getWidth();
         Config.windowH = dialog.getHeight();
         Config.divider = split.getDividerLocation();
-        ConfigUtil.saveFromConfig("FileNameTagTool config");
+        ConfigUtil.save();
 
         Object cancelled = input.getClientProperty("cancelled");
         if (Boolean.TRUE.equals(cancelled)) return null;
@@ -492,7 +501,6 @@ public final class UITool {
         List<Image> icons = new ArrayList<>();
         try {
             String iconBasePath = Config.iconPath;
-            System.out.println(iconBasePath + "tags-16.png");
             icons.add(new ImageIcon(iconBasePath + "tags-16.png").getImage());
             icons.add(new ImageIcon(iconBasePath + "tags-32.png").getImage());
             icons.add(new ImageIcon(iconBasePath + "tags-48.png").getImage());
@@ -664,7 +672,6 @@ public final class UITool {
                     queryBuilder.append(" 【").append(tag).append("】");
                 }
                 try {
-                    System.out.println(queryBuilder.toString());
                     EverythingUtil.launchEverythingUI(queryBuilder.toString(), Config.everythingPath);
                 } catch (Exception ex) {
                     ex.printStackTrace();
@@ -782,7 +789,7 @@ public final class UITool {
             int renamed = 0;
             for (java.nio.file.Path p : paths) {
                 try {
-                    if (FileOperation.addTagsToNamePrefix(p, tags)) {
+                    if (FileUtil.addTagsToNamePrefix(p, tags)) {
                         renamed++;
                     }
                 } catch (Exception ex) {
@@ -790,7 +797,7 @@ public final class UITool {
                 }
             }
             showMessage("成功为 " + renamed + " 个文件添加标签", "完成");
-            TagManager.rememberTags(tags, new HashSet<>());
+            TagUtil.rememberTags(tags, new HashSet<>());
             parentFrame.dispose();
             createTagManagerWindow(paths);
         });
@@ -931,7 +938,7 @@ public final class UITool {
         int renamed = 0;
         for (java.nio.file.Path p : paths) {
             try {
-                if (FileOperation.removeTags(p, tagsToRemove)) {
+                if (FileUtil.removeTags(p, tagsToRemove)) {
                     renamed++;
                 }
             } catch (Exception e) {
@@ -988,7 +995,7 @@ public final class UITool {
         Config.groupTagsWindowY = window.getY();
         Config.groupTagsWindowWidth = window.getWidth();
         Config.groupTagsWindowHeight = window.getHeight();
-        ConfigUtil.saveFromConfig("FileNameTagTool config");
+        ConfigUtil.save();
     }
 
     /**
