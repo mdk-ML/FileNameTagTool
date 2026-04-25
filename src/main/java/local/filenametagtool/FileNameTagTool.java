@@ -1,48 +1,24 @@
 package local.filenametagtool;
 
-import local.filenametagtool.component.BadgeToggleButton;
-import local.filenametagtool.component.WrapLayout;
 import local.filenametagtool.model.Action;
-import local.filenametagtool.model.Config;
 import local.filenametagtool.model.Parsed;
-import local.filenametagtool.util.ConfigUtil;
-import local.filenametagtool.util.EverythingUtil;
+import local.filenametagtool.operation.FileOperation;
+import local.filenametagtool.manager.TagManager;
+import local.filenametagtool.ui.UITool;
 
-import javax.swing.*;
-import javax.swing.border.TitledBorder;
-import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.io.IOException;
-import java.net.URL;
-import java.nio.file.*;
-import java.util.*;
+import java.nio.file.Path;
 import java.util.List;
-import java.util.regex.Pattern;
+import java.util.Objects;
 
 public final class FileNameTagTool {
-    private static final Pattern LEADING_TAGS_PATTERN = Pattern.compile("^(?:【[^】]*】)+");
-
-    private static final String CONFIG_FILE_NAME = "filename-tagtool.conf";
 
     public static void main(String[] args) {
-        // 设置系统的外观
-        try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-            // 取消标签页的焦点指示器
-            UIManager.put("TabbedPane.focus", new Color(0, 0, 0, 0));
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        System.setProperty("java.awt.headless", "false");
-
         // 初始化配置
-        ConfigUtil.init(configFilePath().toString());
+        local.filenametagtool.util.ConfigUtil.init();
 
         final Parsed parsed = parseArgs(args);
         if (parsed.action == null) {
-            showMessage("缺少动作参数，请用：add | removeAll | newVersion | copyWithoutTags。", "提示");
+            UITool.showMessage("缺少动作参数，请用：add | removeAll | newVersion | copyWithoutTags。", "提示");
             return;
         }
 
@@ -52,37 +28,37 @@ public final class FileNameTagTool {
                                                 .filter(s -> !s.isEmpty())
                                                 .map(FileNameTagTool::safeToPath)
                                                 .filter(Objects::nonNull)
-                                                .filter(p -> Files.exists(p, LinkOption.NOFOLLOW_LINKS))
+                                                .filter(p -> java.nio.file.Files.exists(p, java.nio.file.LinkOption.NOFOLLOW_LINKS))
                                                 .distinct()
                                                 .toList();
 
         if (existing.isEmpty()) {
-            showMessage("没有获取到有效的文件/文件夹路径。请先在资源管理器中选中后再点击菜单。", "提示");
+            UITool.showMessage("没有获取到有效的文件/文件夹路径。请先在资源管理器中选中后再点击菜单。", "提示");
             return;
         }
 
         if (action == Action.SEARCH) {
-            createTagManagerWindow(existing);
+            UITool.createTagManagerWindow(existing);
             return;
         }
 
         final List<String> addTags;
-        final Set<String> removeTags;
+        final java.util.Set<String> removeTags;
         if (action == Action.ADD) {
-            final Object[] result = askTagsWithHistory();
+            final Object[] result = UITool.askTagsWithHistory();
             if (result == null) return;
 
             final List<String> tags = (List<String>) result[0];
-            final Set<String> smartTags = (Set<String>) result[1];
+            final java.util.Set<String> smartTags = (java.util.Set<String>) result[1];
 
-            final List<String> normalized = normalizeTags(tags);
+            final List<String> normalized = TagManager.normalizeTags(tags);
             if (normalized.isEmpty()) return;
 
-            rememberTags(normalized, smartTags);
+            TagManager.rememberTags(normalized, smartTags);
             addTags = normalized;
             removeTags = null;
         } else if (action == Action.REMOVE) {
-            removeTags = askTagsToRemove(existing);
+            removeTags = UITool.askTagsToRemove(existing);
             if (removeTags == null) return;
             addTags = null;
         } else {
@@ -97,15 +73,15 @@ public final class FileNameTagTool {
                 try {
                     final boolean ok;
                     if (action == Action.ADD) {
-                        ok = addTagsToNamePrefix(p, addTags);
+                        ok = FileOperation.addTagsToNamePrefix(p, addTags);
                     } else if (action == Action.REMOVE) {
-                        ok = removeTags(p, removeTags);
+                        ok = FileOperation.removeTags(p, removeTags);
                     } else if (action == Action.NEW_VERSION) {
-                        ok = createNewVersion(p);
+                        ok = FileOperation.createNewVersion(p);
                     } else if (action == Action.COPY_WITHOUT_TAGS) {
-                        ok = copyWithoutTags(p);
+                        ok = FileOperation.copyWithoutTags(p);
                     } else {
-                        ok = removeAllTags(p);
+                        ok = FileOperation.removeAllTags(p);
                     }
                     if (ok) renamed++;
                     else skipped++;
@@ -114,9 +90,9 @@ public final class FileNameTagTool {
                 }
             }
 
-            showMessage("选择项：" + existing.size() + "\n成功重命名：" + renamed + "\n跳过/失败：" + skipped, "完成");
+            UITool.showMessage("选择项：" + existing.size() + "\n成功重命名：" + renamed + "\n跳过/失败：" + skipped, "完成");
         } catch (Exception e) {
-            showMessage(String.valueOf(e), "错误");
+            UITool.showMessage(String.valueOf(e), "错误");
         }
     }
 
