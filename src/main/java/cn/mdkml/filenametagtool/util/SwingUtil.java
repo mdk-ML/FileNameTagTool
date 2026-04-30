@@ -1066,6 +1066,18 @@ public final class SwingUtil {
             applyTagToSelectedFiles(path, selectedFiles, allTags, refreshAction);
         });
 
+        // 回车键触发添加标签按钮
+        input.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent event) {
+                if (event.getKeyCode() == java.awt.event.KeyEvent.VK_ENTER
+                        && !event.isControlDown() && !event.isShiftDown()) {
+                    event.consume();
+                    addButton.doClick();
+                }
+            }
+        });
+
         JButton addRefreshButton = new JButton("刷新");
         addRefreshButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
         addRefreshButton.setPreferredSize(new Dimension(addRefreshButton.getPreferredSize().width + 20, 36));

@@ -41,9 +41,12 @@ public final class TagUtil {
         ConfigUtil.reload();
         List<String> old = new ArrayList<>(Config.tags);
 
-        // 筛选出尚未记录的新标签
+        // 筛选出尚未记录的新标签，排除版本号标签
         List<String> newTags = new ArrayList<>();
         for (String tag : incoming) {
+            if (FileUtil.VERSION_TAG_PATTERN.matcher(tag).matches()) {
+                continue;
+            }
             boolean exists = false;
             for (String existing : old) {
                 if (tag.equalsIgnoreCase(existing)) {
