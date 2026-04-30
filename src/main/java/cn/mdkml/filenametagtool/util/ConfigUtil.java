@@ -113,6 +113,8 @@ public final class ConfigUtil {
         Config.everythingPath = properties.getProperty(Config.KEY_EVERYTHING_PATH, Config.everythingPath);
         Config.iconPath = properties.getProperty(Config.KEY_ICON_PATH, Config.iconPath);
         Config.tags = getList(Config.KEY_TAGS, Config.DELIMITER);
+        Config.addTagHorizontalDivider = getInt(Config.KEY_ADD_TAG_HORIZONTAL_DIVIDER, Config.addTagHorizontalDivider);
+        Config.addTagVerticalDivider = getInt(Config.KEY_ADD_TAG_VERTICAL_DIVIDER, Config.addTagVerticalDivider);
     }
 
     /**
@@ -242,6 +244,10 @@ public final class ConfigUtil {
             writePropertyLine(writer, "# 图标文件目录路径", Config.KEY_ICON_PATH, Config.iconPath);
             writer.newLine();
 
+            writePropertyLine(writer, "# 添加标签页-左右分隔线位置", Config.KEY_ADD_TAG_HORIZONTAL_DIVIDER, String.valueOf(Config.addTagHorizontalDivider));
+            writePropertyLine(writer, "# 添加标签页-右侧上下分隔线位置", Config.KEY_ADD_TAG_VERTICAL_DIVIDER, String.valueOf(Config.addTagVerticalDivider));
+            writer.newLine();
+
             writer.write("# 标签列表（多个标签用逗号分隔）");
             writer.newLine();
             writer.write(Config.KEY_TAGS + "=" + String.join(Config.DELIMITER, Config.tags));
@@ -277,6 +283,8 @@ public final class ConfigUtil {
         set(Config.KEY_EVERYTHING_PATH, Config.everythingPath);
         set(Config.KEY_ICON_PATH, Config.iconPath);
         set(Config.KEY_TAGS, Config.tags, Config.DELIMITER);
+        set(Config.KEY_ADD_TAG_HORIZONTAL_DIVIDER, Config.addTagHorizontalDivider);
+        set(Config.KEY_ADD_TAG_VERTICAL_DIVIDER, Config.addTagVerticalDivider);
     }
 
 

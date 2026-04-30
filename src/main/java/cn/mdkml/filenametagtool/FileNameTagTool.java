@@ -1,81 +1,89 @@
 package cn.mdkml.filenametagtool;
 
-import cn.mdkml.filenametagtool.util.TagUtil;
 import cn.mdkml.filenametagtool.model.Action;
 import cn.mdkml.filenametagtool.model.Parsed;
+import cn.mdkml.filenametagtool.util.ConfigUtil;
 import cn.mdkml.filenametagtool.util.FileUtil;
 import cn.mdkml.filenametagtool.util.SwingUtil;
-import cn.mdkml.filenametagtool.util.ConfigUtil;
+import cn.mdkml.filenametagtool.util.TagUtil;
 
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
 /**
- * 文件名标签工具主类
- * 用于在文件名开头添加、移除标签，以及管理文件版本
+ * 文件名标签工具主类。
+ * <p>
+ * 提供文件名标签的添加、移除、版本管理等功能。
+ * 作为右键菜单的入口，接收命令行参数并分发到对应的文件操作。
+ * </p>
  */
 public final class FileNameTagTool {
 
     /**
-     * 主方法，程序入口
+     * 程序入口，解析命令行参数并执行对应的文件标签操作。
      *
-     * @param args 命令行参数
+     * @param args 命令行参数，第一个为动作类型，后续为文件路径
      */
     public static void main(String[] args) {
-        // 初始化系统外观
         SwingUtil.initLookAndFeel();
-
-        // 初始化配置
         ConfigUtil.init();
 
-        final Parsed parsed = parseArgs(args);
+        final Parsed parsed = Parsed.parseArgs(args);
         if (parsed.action == null) {
             SwingUtil.showMessage("缺少动作参数，请用：add | removeAll | newVersion | copyWithoutTags。", "提示");
             return;
         }
 
         final Action action = parsed.action;
+        // 过滤出实际存在的文件路径，去重
         final List<Path> existing = parsed.paths.stream()
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .map(FileNameTagTool::safeToPath)
                 .filter(Objects::nonNull)
-                .filter(p -> java.nio.file.Files.exists(p, java.nio.file.LinkOption.NOFOLLOW_LINKS))
+                .filter(p -> Files.exists(p, LinkOption.NOFOLLOW_LINKS))
                 .distinct()
                 .toList();
 
         if (existing.isEmpty()) {
-            SwingUtil.showMessage("没有获取到有效的文件/文件夹路径。请先在资源管理器中选中后再点击菜单。", "提示");
+            SwingUtil.showMessage("没有获取到有效的文件/文件夹路径。", "提示");
             return;
         }
 
-        if (action == Action.SEARCH) {
-            SwingUtil.createTagManagerWindow(existing);
+        // 标签管理模式：打开标签管理窗口
+        if (action == Action.MANAGE) {
+            SwingUtil.createTagManagerWindow(existing.get(0).toString());
             return;
         }
 
         final List<String> addTags;
         final Set<String> removeTags;
         if (action == Action.ADD) {
+            // 弹窗让用户输入要添加的标签
             final Object[] result = SwingUtil.askTagsWithHistory();
-            if (result == null) return;
-
+            if (result == null) {
+                return;
+            }
             final List<String> tags = (List<String>) result[0];
             final Set<String> smartTags = (Set<String>) result[1];
-
             final List<String> normalized = TagUtil.normalizeTags(tags);
-            if (normalized.isEmpty()) return;
-
+            if (normalized.isEmpty()) {
+                return;
+            }
             TagUtil.rememberTags(normalized, smartTags);
             addTags = normalized;
             removeTags = null;
         } else if (action == Action.REMOVE) {
+            // 弹窗让用户选择要移除的标签
             removeTags = SwingUtil.askTagsToRemove(existing);
-            if (removeTags == null) return;
+            if (removeTags == null) {
+                return;
+            }
             addTags = null;
         } else {
             addTags = null;
@@ -85,22 +93,25 @@ public final class FileNameTagTool {
         try {
             int renamed = 0;
             int skipped = 0;
-            for (Path p : existing) {
+            for (Path path : existing) {
                 try {
-                    final boolean ok;
+                    boolean success;
                     if (action == Action.ADD) {
-                        ok = FileUtil.addTagsToNamePrefix(p, addTags);
+                        success = FileUtil.addTagsToNamePrefix(path, addTags);
                     } else if (action == Action.REMOVE) {
-                        ok = FileUtil.removeTags(p, removeTags);
+                        success = FileUtil.removeTags(path, removeTags);
                     } else if (action == Action.NEW_VERSION) {
-                        ok = FileUtil.createNewVersion(p);
+                        success = FileUtil.createNewVersion(path);
                     } else if (action == Action.COPY_WITHOUT_TAGS) {
-                        ok = FileUtil.copyWithoutTags(p);
+                        success = FileUtil.copyWithoutTags(path);
                     } else {
-                        ok = FileUtil.removeAllTags(p);
+                        success = FileUtil.removeAllTags(path);
                     }
-                    if (ok) renamed++;
-                    else skipped++;
+                    if (success) {
+                        renamed++;
+                    } else {
+                        skipped++;
+                    }
                 } catch (Exception e) {
                     skipped++;
                 }
@@ -113,36 +124,14 @@ public final class FileNameTagTool {
     }
 
     /**
-     * 解析命令行参数
+     * 安全地将字符串转换为 {@link Path} 对象，转换失败时返回 {@code null}。
      *
-     * @param args 命令行参数
-     * @return 解析后的动作和路径
+     * @param value 待转换的路径字符串
+     * @return 对应的 Path 对象，或 {@code null}
      */
-    static Parsed parseArgs(String[] args) {
-        if (args == null || args.length == 0) return new Parsed(null, List.of());
-        Action action = Action.fromArg(args[0]);
-        List<String> paths = new ArrayList<>();
-        for (int i = 1; i < args.length; i++) {
-            String a = args[i];
-            if (a == null) continue;
-            String v = a.trim();
-            if (v.startsWith("\"") && v.endsWith("\"") && v.length() >= 2) {
-                v = v.substring(1, v.length() - 1);
-            }
-            if (!v.isEmpty()) paths.add(v);
-        }
-        return new Parsed(action, paths);
-    }
-
-    /**
-     * 安全地将字符串转换为Path对象
-     *
-     * @param s 字符串
-     * @return Path对象，若转换失败则返回null
-     */
-    static Path safeToPath(String s) {
+    static Path safeToPath(String value) {
         try {
-            return Paths.get(s);
+            return Paths.get(value);
         } catch (Exception e) {
             return null;
         }

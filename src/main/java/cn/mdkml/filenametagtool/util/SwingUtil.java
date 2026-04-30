@@ -9,7 +9,11 @@ import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -32,6 +36,8 @@ public final class SwingUtil {
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
             UIManager.put("TabbedPane.focus", new Color(0, 0, 0, 0));
+            UIManager.put("SplitPaneDivider.border", BorderFactory.createLineBorder(BG_CONTENT));
+            UIManager.put("SplitPane.background", BG_CONTENT);       // 分隔线背景
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -449,7 +455,7 @@ public final class SwingUtil {
         bottom.setBackground(BG_WHITE);
         bottom.add(Box.createVerticalStrut(16));
 
-        JButton remove = new JButton("移除选中标签");
+        JButton remove = new JButton("移除标签");
         JButton cancel = new JButton("取消");
         stylePrimaryButton(remove);
         styleSecondaryButton(cancel);
@@ -489,15 +495,58 @@ public final class SwingUtil {
     }
 
     /**
-     * 创建标签管理窗口
+     * 创建标签管理窗口。
      *
-     * @param paths 文件路径列表
+     * @param path 目录路径
      */
-    public static void createTagManagerWindow(List<Path> paths) {
+    public static void createTagManagerWindow(String path) {
         ConfigUtil.reload();
-        String currentPath = paths.get(0).toString();
 
-        JFrame frame = new JFrame("文件标签管理 " + currentPath);
+        // 1. 空值检查
+        if (path == null) {
+            showMessage("路径参数不能为空", "错误");
+            return;
+        }
+
+        // 2. 空字符串检查
+        path = path.trim();
+        if (path.isEmpty()) {
+            showMessage("路径字符串不能为空", "错误");
+            return;
+        }
+
+        Path dirPath = Paths.get(path);
+
+        // 3. 路径存在性检查
+        if (!Files.exists(dirPath)) {
+            showMessage("路径不存在: " + path, "错误");
+            return;
+        }
+
+        // 4. 目录类型检查（严格验证：必须是目录）
+        if (!Files.isDirectory(dirPath)) {
+            showMessage("参数类型不匹配：" + path + "\n请提供有效的目录路径，而非文件路径", "错误");
+            return;
+        }
+
+        // 5. 目录可读性检查
+        if (!Files.isReadable(dirPath)) {
+            showMessage("无法读取目录：" + path + "\n请检查目录权限", "错误");
+            return;
+        }
+
+        // 6. 空目录检查
+        try {
+            if (Files.list(dirPath).filter(Files::isRegularFile).count() == 0) {
+                showMessage("目录为空：" + path, "提示");
+                return;
+            }
+        } catch (IOException e) {
+            showMessage("无法访问目录: " + path + "\n错误: " + e.getMessage(), "错误");
+            return;
+        }
+
+        JFrame frame = new JFrame("文件标签管理 " + path);
         List<Image> icons = new ArrayList<>();
         try {
             String iconBasePath = Config.iconPath;
@@ -528,9 +577,28 @@ public final class SwingUtil {
         mainContainer.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         JTabbedPane tabbedPane = new JTabbedPane();
         tabbedPane.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
-        tabbedPane.addTab("搜索", null, createSearchTab(paths, frame));
-        tabbedPane.addTab("添加标签", null, createAddTagTab(paths, frame));
-        tabbedPane.addTab("移除标签", null, createRemoveTagTab(paths, frame));
+        final String finalPath = path;
+        final JTabbedPane finalTabbedPane = tabbedPane;
+        final Runnable[] refreshSearch = new Runnable[1];
+        final Runnable[] refreshAddTag = new Runnable[1];
+        final Runnable[] refreshRemoveTag = new Runnable[1];
+        refreshSearch[0] = () -> finalTabbedPane.setComponentAt(0, createSearchTab(finalPath, refreshSearch[0]));
+        refreshAddTag[0] = () -> finalTabbedPane.setComponentAt(1, createAddTagTab(finalPath, refreshAddTag[0]));
+        refreshRemoveTag[0] = () -> finalTabbedPane.setComponentAt(2, createRemoveTagTab(finalPath, refreshRemoveTag[0]));
+
+        tabbedPane.addTab("搜索", null, createSearchTab(path, refreshSearch[0]));
+        tabbedPane.addTab("添加标签", null, createAddTagTab(path, refreshAddTag[0]));
+        tabbedPane.addTab("移除标签", null, createRemoveTagTab(path, refreshRemoveTag[0]));
+
+        // 切换标签时刷新对应面板内容
+        tabbedPane.addChangeListener(e -> {
+            int selectedIndex = finalTabbedPane.getSelectedIndex();
+            switch (selectedIndex) {
+                case 0 -> refreshSearch[0].run();
+                case 1 -> refreshAddTag[0].run();
+                case 2 -> refreshRemoveTag[0].run();
+            }
+        });
 
         mainContainer.add(tabbedPane, BorderLayout.CENTER);
 
@@ -558,13 +626,13 @@ public final class SwingUtil {
     }
 
     /**
-     * 创建搜索标签面板
+     * 创建搜索标签面板。
      *
-     * @param paths      文件路径列表
-     * @param parentFrame 父窗口
+     * @param path         目录路径
+     * @param refreshAction 刷新回调
      * @return 搜索面板
      */
-    private static JPanel createSearchTab(List<java.nio.file.Path> paths, JFrame parentFrame) {
+    private static JPanel createSearchTab(String path, Runnable refreshAction) {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
         panel.setBackground(BG_CONTENT);
@@ -578,7 +646,7 @@ public final class SwingUtil {
             return panel;
         }
 
-        List<EverythingUtil.SearchResult> results = searcher.search("【 】", paths.get(0).toString());
+        List<EverythingUtil.SearchResult> results = searcher.search("【 】", path);
 
         java.util.Map<String, Integer> tagCount = new java.util.LinkedHashMap<>();
         java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("【([^】]+)】");
@@ -591,11 +659,10 @@ public final class SwingUtil {
             }
         }
 
-        String currentPath = paths.get(0).toString();
         ConfigUtil.reload();
 
         JPanel contentPanel = new JPanel();
-        contentPanel.setLayout(new WrapLayout(FlowLayout.LEFT, 4, 4));
+        contentPanel.setLayout(new WrapLayout());
         contentPanel.setBackground(BG_CONTENT);
 
         List<BadgeToggleButton> toggleButtons = new ArrayList<>();
@@ -630,7 +697,7 @@ public final class SwingUtil {
                                     btn.setSelected(false);
                                 }
                             }
-                            String searchQuery = currentPath + " 【" + tag + "】";
+                            String searchQuery = path + " 【" + tag + "】";
                             try {
                                 EverythingUtil.launchEverythingUI(searchQuery, Config.everythingPath);
                             } catch (Exception ex) {
@@ -667,7 +734,7 @@ public final class SwingUtil {
                 }
             }
             if (!selectedTags.isEmpty()) {
-                StringBuilder queryBuilder = new StringBuilder(currentPath);
+                StringBuilder queryBuilder = new StringBuilder(path);
                 for (String tag : selectedTags) {
                     queryBuilder.append(" 【").append(tag).append("】");
                 }
@@ -684,10 +751,7 @@ public final class SwingUtil {
         refreshButton.setPreferredSize(new Dimension(refreshButton.getPreferredSize().width + 20, 36));
         refreshButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
         refreshButton.setFocusPainted(false);
-        refreshButton.addActionListener(e -> {
-            parentFrame.dispose();
-            createTagManagerWindow(paths);
-        });
+        refreshButton.addActionListener(e -> refreshAction.run());
 
         buttonPanel.add(searchButton);
         buttonPanel.add(refreshButton);
@@ -697,72 +761,178 @@ public final class SwingUtil {
     }
 
     /**
-     * 创建添加标签面板
+     * 创建添加标签面板。
+     * <p>
+     * 布局采用嵌套 JSplitPane 实现三个可拖拽区域：
+     * 左侧为历史标签列表，右侧上部为当前目录文件列表，右侧下部为自定义标签输入框。
+     * 支持双击历史标签直接为选中文件添加标签，也支持多选历史标签后点击按钮批量添加。
+     * </p>
      *
-     * @param paths      文件路径列表
-     * @param parentFrame 父窗口
+     * @param path         目录路径
+     * @param refreshAction 刷新回调
      * @return 添加标签面板
      */
-    private static JPanel createAddTagTab(List<java.nio.file.Path> paths, JFrame parentFrame) {
+    private static JPanel createAddTagTab(String path, Runnable refreshAction) {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
         panel.setBackground(BG_CONTENT);
 
-        JPanel contentPanel = new JPanel();
-        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
-        contentPanel.setBackground(BG_CONTENT);
+        // 被选中的文件列表，由文件按钮的选中状态同步维护
+        final List<File> selectedFiles = new ArrayList<>();
+        // 所有历史标签按钮，用于双击和多选操作
+        final List<JToggleButton> historyTagButtons = new ArrayList<>();
 
+        // ==================== 左侧：历史标签模块 ====================
         ConfigUtil.reload();
         List<String> history = new ArrayList<>(Config.tags);
-
-        JPanel tagsPanel = new JPanel(new WrapLayout(FlowLayout.LEFT, 12, 12));
+        JPanel tagsPanel = new JPanel();
+        tagsPanel.setLayout(new BoxLayout(tagsPanel, BoxLayout.Y_AXIS));
         tagsPanel.setBackground(BG_CONTENT);
         for (String tag : history) {
-            JToggleButton b = new JToggleButton(tag);
-            b.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
-            b.setFocusPainted(false);
-            b.setCursor(new Cursor(Cursor.HAND_CURSOR));
-            tagsPanel.add(b);
+            JToggleButton tagButton = new JToggleButton(tag);
+            tagButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+            tagButton.setFocusPainted(false);
+            tagButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            tagButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+            tagButton.setHorizontalAlignment(SwingConstants.CENTER);
+            tagButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, tagButton.getPreferredSize().height));
+
+            // 双击历史标签：立即将该标签添加到所有已选中的文件
+            tagButton.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseClicked(MouseEvent event) {
+                    if (event.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(event)) {
+                        if (selectedFiles.isEmpty()) {
+                            showMessage("请先在右侧选择要添加标签的文件", "提示");
+                            return;
+                        }
+                        applyTagToSelectedFiles(path, selectedFiles, List.of(tag), refreshAction);
+                    }
+                }
+            });
+
+            historyTagButtons.add(tagButton);
+            tagsPanel.add(tagButton);
+            tagsPanel.add(Box.createVerticalStrut(5));
         }
 
         JScrollPane tagsScroll = new JScrollPane(tagsPanel, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         tagsScroll.setBackground(BG_CONTENT);
-        tagsScroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
-        tagsScroll.setAlignmentX(Component.LEFT_ALIGNMENT);
-        TitledBorder historyBorder = BorderFactory.createTitledBorder("历史标签");
-        tagsScroll.setBorder(historyBorder);
-        contentPanel.add(tagsScroll);
+        tagsScroll.setBorder(BorderFactory.createTitledBorder("历史标签"));
 
+        // ==================== 右侧上部：当前目录文件模块 ====================
+        File currentDir = new File(path);
+        File[] files = currentDir.listFiles();
+
+        JPanel filesPanel = new JPanel();
+        filesPanel.setLayout(new BoxLayout(filesPanel, BoxLayout.Y_AXIS));
+        filesPanel.setBackground(BG_CONTENT);
+
+        if (files != null) {
+            for (File file : files) {
+                if (file.isFile()) {
+                    final File currentFile = file;
+                    // 使用 HTML 实现文字左对齐
+                    JToggleButton fileButton = new JToggleButton("<html><div style='text-align:left;width:100%;'>" + file.getName() + "</div></html>");
+                    fileButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+                    fileButton.setFocusPainted(false);
+                    fileButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+                    fileButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+                    fileButton.setHorizontalAlignment(SwingConstants.LEFT);
+                    fileButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, fileButton.getPreferredSize().height));
+
+                    fileButton.addItemListener(e -> {
+                        if (fileButton.isSelected()) {
+                            selectedFiles.add(currentFile);
+                        } else {
+                            selectedFiles.remove(currentFile);
+                        }
+                    });
+
+                    filesPanel.add(fileButton);
+                    filesPanel.add(Box.createVerticalStrut(5));
+                }
+            }
+        }
+
+        JScrollPane filesScroll = new JScrollPane(filesPanel);
+        filesScroll.setBackground(BG_CONTENT);
+        filesScroll.setBorder(BorderFactory.createTitledBorder("当前目录文件"));
+
+        // ==================== 右侧下部：自定义标签输入模块 ====================
+        String placeholderText = "输入自定义标签，多个标签请用空格分隔，例如：紧急任务 Q2季度报告 客户反馈";
         JTextArea input = new JTextArea();
         input.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 14));
-        input.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(BORDER_GRAY, 1, true), BorderFactory.createEmptyBorder(12, 12, 12, 12)));
-        input.setPreferredSize(new Dimension(400, 80));
+        input.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_GRAY, 1, true),
+                BorderFactory.createEmptyBorder(12, 12, 12, 12)));
         input.setLineWrap(true);
         input.setWrapStyleWord(true);
-        input.setText("输入自定义标签，多个标签请用空格分隔，例如：紧急任务 Q2季度报告 客户反馈");
+        input.setText(placeholderText);
         input.setForeground(new Color(160, 160, 160));
-        input.setAlignmentX(Component.LEFT_ALIGNMENT);
         input.addFocusListener(new java.awt.event.FocusAdapter() {
             @Override
-            public void focusGained(java.awt.event.FocusEvent e) {
-                if (input.getText().equals("输入自定义标签，多个标签请用空格分隔，例如：紧急任务 Q2季度报告 客户反馈")) {
+            public void focusGained(java.awt.event.FocusEvent event) {
+                if (input.getText().equals(placeholderText)) {
                     input.setText("");
                     input.setForeground(TEXT_DARK);
                 }
             }
 
             @Override
-            public void focusLost(java.awt.event.FocusEvent e) {
+            public void focusLost(java.awt.event.FocusEvent event) {
                 if (input.getText().isEmpty()) {
-                    input.setText("输入自定义标签，多个标签请用空格分隔，例如：紧急任务 Q2季度报告 客户反馈");
+                    input.setText(placeholderText);
                     input.setForeground(new Color(160, 160, 160));
                 }
             }
         });
-        contentPanel.add(input);
 
-        panel.add(contentPanel, BorderLayout.CENTER);
+        // 自定义标签输入区域用 TitledBorder 包裹，与历史标签和文件列表保持一致
+        JScrollPane inputScroll = new JScrollPane(input);
+        inputScroll.setBackground(BG_CONTENT);
+        inputScroll.setBorder(BorderFactory.createTitledBorder("自定义标签"));
+        inputScroll.setPreferredSize(new Dimension(400, 120));
 
+        // ==================== 嵌套 JSplitPane 实现三区域可拖拽 ====================
+        // 右侧上下分隔：文件列表 / 自定义标签输入
+        JSplitPane rightSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, filesScroll, inputScroll);
+        rightSplit.setResizeWeight(0.7);
+        rightSplit.setBackground(BG_CONTENT);
+        rightSplit.setBorder(null);
+
+        // 左右分隔：历史标签 / (文件列表 + 自定义标签)
+        JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, tagsScroll, rightSplit);
+        mainSplit.setResizeWeight(0.3);
+        mainSplit.setBackground(BG_CONTENT);
+        mainSplit.setBorder(null);
+
+        // 从配置恢复分隔线位置
+        ConfigUtil.reload();
+        if (Config.addTagHorizontalDivider > 0) {
+            mainSplit.setDividerLocation(Config.addTagHorizontalDivider);
+        } else {
+            mainSplit.setDividerLocation(0.3);
+        }
+        if (Config.addTagVerticalDivider > 0) {
+            rightSplit.setDividerLocation(Config.addTagVerticalDivider);
+        } else {
+            rightSplit.setDividerLocation(0.7);
+        }
+
+        // 拖拽分隔线时自动保存位置到配置
+        mainSplit.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, evt -> {
+            Config.addTagHorizontalDivider = mainSplit.getDividerLocation();
+            ConfigUtil.save();
+        });
+        rightSplit.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, evt -> {
+            Config.addTagVerticalDivider = rightSplit.getDividerLocation();
+            ConfigUtil.save();
+        });
+
+        panel.add(mainSplit, BorderLayout.CENTER);
+
+        // ==================== 底部按钮区 ====================
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         buttonPanel.setBackground(BG_CONTENT);
 
@@ -771,183 +941,282 @@ public final class SwingUtil {
         addButton.setPreferredSize(new Dimension(addButton.getPreferredSize().width + 20, 36));
         addButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
         addButton.setFocusPainted(false);
-        addButton.setForeground(TEXT_LIGHT);
-        addButton.setBackground(GRADIENT_START);
-        addButton.setOpaque(true);
-        addButton.setBorderPainted(false);
         addButton.addActionListener(e -> {
+            // 收集自定义输入的标签
             String typed = input.getText();
-            if (typed.equals("输入自定义标签，多个标签请用空格分隔，例如：紧急任务 Q2季度报告 客户反馈")) {
+            if (typed.equals(placeholderText)) {
                 typed = "";
             }
-            List<String> tags = splitTags(typed);
-            if (tags.isEmpty()) {
-                showMessage("请输入有效的标签", "提示");
+            List<String> customTags = splitTags(typed);
+
+            // 收集多选的历史标签
+            List<String> selectedHistoryTags = new ArrayList<>();
+            for (JToggleButton btn : historyTagButtons) {
+                if (btn.isSelected()) {
+                    selectedHistoryTags.add(btn.getText().trim());
+                }
+            }
+
+            // 合并自定义标签和选中的历史标签
+            List<String> allTags = new ArrayList<>();
+            allTags.addAll(selectedHistoryTags);
+            allTags.addAll(customTags);
+
+            if (allTags.isEmpty()) {
+                showMessage("请输入或选择要添加的标签", "提示");
                 return;
             }
 
-            int renamed = 0;
-            for (java.nio.file.Path p : paths) {
-                try {
-                    if (FileUtil.addTagsToNamePrefix(p, tags)) {
-                        renamed++;
-                    }
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                }
+            if (selectedFiles.isEmpty()) {
+                showMessage("请先选择要添加标签的文件", "提示");
+                return;
             }
-            showMessage("成功为 " + renamed + " 个文件添加标签", "完成");
-            TagUtil.rememberTags(tags, new HashSet<>());
-            parentFrame.dispose();
-            createTagManagerWindow(paths);
+
+            applyTagToSelectedFiles(path, selectedFiles, allTags, refreshAction);
         });
 
+        JButton addRefreshButton = new JButton("刷新");
+        addRefreshButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        addRefreshButton.setPreferredSize(new Dimension(addRefreshButton.getPreferredSize().width + 20, 36));
+        addRefreshButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        addRefreshButton.setFocusPainted(false);
+        addRefreshButton.addActionListener(e -> refreshAction.run());
+
         buttonPanel.add(addButton);
+        buttonPanel.add(addRefreshButton);
         panel.add(buttonPanel, BorderLayout.SOUTH);
 
         return panel;
     }
 
     /**
-     * 创建移除标签面板
+     * 将指定标签添加到选中的文件，并刷新当前标签页。
      *
-     * @param paths      文件路径列表
-     * @param parentFrame 父窗口
+     * @param path          当前目录路径
+     * @param selectedFiles 已选中的文件列表
+     * @param tags          要添加的标签列表
+     * @param refreshAction 刷新回调
+     */
+    private static void applyTagToSelectedFiles(String path, List<File> selectedFiles,
+                                                List<String> tags, Runnable refreshAction) {
+        int renamed = 0;
+        for (File file : selectedFiles) {
+            try {
+                Path filePath = file.toPath();
+                if (FileUtil.addTagsToNamePrefix(filePath, tags)) {
+                    renamed++;
+                }
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
+        showMessage("成功为 " + renamed + " 个文件添加标签", "完成");
+        TagUtil.rememberTags(tags, new HashSet<>());
+        refreshAction.run();
+    }
+
+    /**
+     * 创建移除标签面板。
+     * <p>
+     * 采用 JSplitPane 实现左右两区域可拖拽：
+     * 左侧为当前目录中已有标签的文件所含标签列表，右侧为有标签的文件列表。
+     * 支持双击标签直接从选中文件中移除，也支持多选标签后点击按钮批量移除。
+     * </p>
+     *
+     * @param path         目录路径
+     * @param refreshAction 刷新回调
      * @return 移除标签面板
      */
-    private static JPanel createRemoveTagTab(List<java.nio.file.Path> paths, JFrame parentFrame) {
+    private static JPanel createRemoveTagTab(String path, Runnable refreshAction) {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
         panel.setBackground(BG_CONTENT);
 
+        // 被选中的文件列表，由文件按钮的选中状态同步维护
+        final List<File> selectedFiles = new ArrayList<>();
+        // 所有标签按钮，用于双击和多选操作
+        final List<JToggleButton> tagButtons = new ArrayList<>();
+
+        // ==================== 扫描有标签的文件及其标签 ====================
         Set<String> existingFileTags = new LinkedHashSet<>();
-        for (java.nio.file.Path file : paths) {
-            java.nio.file.Path fileName = file.getFileName();
-            if (fileName != null) {
-                String name = fileName.toString();
-                List<String> tags = parseLeadingTags(name);
-                existingFileTags.addAll(tags);
+        List<File> taggedFiles = new ArrayList<>();
+        File currentDir = new File(path);
+        File[] files = currentDir.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (file.isFile()) {
+                    List<String> tags = parseLeadingTags(file.getName());
+                    if (!tags.isEmpty()) {
+                        taggedFiles.add(file);
+                        existingFileTags.addAll(tags);
+                    }
+                }
             }
         }
 
-        if (existingFileTags.isEmpty()) {
-            JLabel emptyLabel = new JLabel("所选文件没有标签可移除");
-            emptyLabel.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 14));
-            emptyLabel.setForeground(new Color(102, 102, 102));
-            panel.add(emptyLabel, BorderLayout.CENTER);
-            return panel;
-        }
-
-        JPanel contentPanel = new JPanel();
-        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
-        contentPanel.setBackground(BG_CONTENT);
-
-        JLabel headerLabel = new JLabel("选择要移除的标签");
-        headerLabel.setFont(new Font("Microsoft YaHei UI", Font.BOLD, 16));
-        headerLabel.setForeground(TEXT_DARK);
-        headerLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        contentPanel.add(headerLabel);
-        contentPanel.add(Box.createVerticalStrut(15));
-
-        final Set<String> tagsToRemove = new HashSet<>();
-        final Color REMOVE_RED = new Color(244, 67, 54);
-
-        JPanel tagsPanel = new JPanel(new WrapLayout(FlowLayout.LEFT, 8, 8));
+        // ==================== 左侧：文件标签模块 ====================
+        JPanel tagsPanel = new JPanel();
+        tagsPanel.setLayout(new BoxLayout(tagsPanel, BoxLayout.Y_AXIS));
         tagsPanel.setBackground(BG_CONTENT);
         for (String tag : existingFileTags) {
-            final String t = tag;
-            JToggleButton b = new JToggleButton(tag);
-            b.setBackground(BG_CONTENT);
-            b.setForeground(TEXT_DARK);
-            b.setFocusPainted(false);
-            b.setOpaque(true);
-            b.setBorderPainted(true);
-            b.setBorder(BorderFactory.createLineBorder(BORDER_GRAY, 1, true));
-            b.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
-            b.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            JToggleButton tagButton = new JToggleButton(tag);
+            tagButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+            tagButton.setFocusPainted(false);
+            tagButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            tagButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+            tagButton.setHorizontalAlignment(SwingConstants.CENTER);
+            tagButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, tagButton.getPreferredSize().height));
 
-            b.addMouseListener(new MouseAdapter() {
+            // 双击标签：立即将该标签从所有已选中的文件中移除
+            tagButton.addMouseListener(new MouseAdapter() {
                 @Override
-                public void mouseClicked(MouseEvent e) {
-                    if (e.getClickCount() == 1 && SwingUtilities.isLeftMouseButton(e)) {
-                        if (tagsToRemove.contains(t)) {
-                            tagsToRemove.remove(t);
-                            b.setBackground(BG_CONTENT);
-                            b.setForeground(TEXT_DARK);
-                            b.setBorderPainted(true);
-                            b.setBorder(BorderFactory.createLineBorder(BORDER_GRAY, 1, true));
-                        } else {
-                            tagsToRemove.add(t);
-                            b.setBackground(REMOVE_RED);
-                            b.setForeground(Color.WHITE);
-                            b.setBorderPainted(false);
+                public void mouseClicked(MouseEvent event) {
+                    if (event.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(event)) {
+                        if (selectedFiles.isEmpty()) {
+                            showMessage("请先在右侧选择要移除标签的文件", "提示");
+                            return;
                         }
-                    } else if (e.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(e)) {
-                        tagsToRemove.clear();
-                        tagsToRemove.add(t);
-                        performRemove(paths, tagsToRemove, parentFrame);
+                        performRemove(path, selectedFiles, Set.of(tag), refreshAction);
                     }
                 }
             });
-            tagsPanel.add(b);
+
+            tagButtons.add(tagButton);
+            tagsPanel.add(tagButton);
+            tagsPanel.add(Box.createVerticalStrut(5));
         }
 
         JScrollPane tagsScroll = new JScrollPane(tagsPanel, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         tagsScroll.setBackground(BG_CONTENT);
-        TitledBorder tagsBorder = BorderFactory.createTitledBorder("文件标签");
-        tagsScroll.setBorder(tagsBorder);
-        contentPanel.add(tagsScroll);
+        tagsScroll.setBorder(BorderFactory.createTitledBorder("文件标签"));
 
-        JScrollPane mainScroll = new JScrollPane(contentPanel);
-        mainScroll.setBackground(BG_CONTENT);
-        panel.add(mainScroll, BorderLayout.CENTER);
+        // ==================== 右侧：有标签的文件列表模块 ====================
+        JPanel filesPanel = new JPanel();
+        filesPanel.setLayout(new BoxLayout(filesPanel, BoxLayout.Y_AXIS));
+        filesPanel.setBackground(BG_CONTENT);
 
+        for (File file : taggedFiles) {
+            final File currentFile = file;
+            JToggleButton fileButton = new JToggleButton("<html><div style='text-align:left;width:100%;'>" + file.getName() + "</div></html>");
+            fileButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+            fileButton.setFocusPainted(false);
+            fileButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            fileButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+            fileButton.setHorizontalAlignment(SwingConstants.LEFT);
+            fileButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, fileButton.getPreferredSize().height));
+
+            fileButton.addItemListener(e -> {
+                if (fileButton.isSelected()) {
+                    selectedFiles.add(currentFile);
+                } else {
+                    selectedFiles.remove(currentFile);
+                }
+            });
+
+            filesPanel.add(fileButton);
+            filesPanel.add(Box.createVerticalStrut(5));
+        }
+
+        JScrollPane filesScroll = new JScrollPane(filesPanel);
+        filesScroll.setBackground(BG_CONTENT);
+        filesScroll.setBorder(BorderFactory.createTitledBorder("有标签的文件"));
+
+        // ==================== JSplitPane 实现左右可拖拽 ====================
+        JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, tagsScroll, filesScroll);
+        mainSplit.setResizeWeight(0.3);
+        mainSplit.setBackground(BG_CONTENT);
+        mainSplit.setBorder(null);
+
+        // 从配置恢复分隔线位置
+        ConfigUtil.reload();
+        if (Config.addTagHorizontalDivider > 0) {
+            mainSplit.setDividerLocation(Config.addTagHorizontalDivider);
+        } else {
+            mainSplit.setDividerLocation(0.3);
+        }
+
+        // 拖拽分隔线时自动保存位置到配置
+        mainSplit.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, evt -> {
+            Config.addTagHorizontalDivider = mainSplit.getDividerLocation();
+            ConfigUtil.save();
+        });
+
+        panel.add(mainSplit, BorderLayout.CENTER);
+
+        // ==================== 底部按钮区 ====================
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         buttonPanel.setBackground(BG_CONTENT);
 
-        JButton removeButton = new JButton("移除选中标签");
+        JButton removeButton = new JButton("移除标签");
         removeButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
         removeButton.setPreferredSize(new Dimension(removeButton.getPreferredSize().width + 20, 36));
         removeButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
         removeButton.setFocusPainted(false);
-        removeButton.setForeground(TEXT_LIGHT);
-        removeButton.setBackground(REMOVE_RED);
-        removeButton.setOpaque(true);
-        removeButton.setBorderPainted(false);
-        removeButton.addActionListener(e -> performRemove(paths, tagsToRemove, parentFrame));
+        removeButton.addActionListener(e -> {
+            // 收集多选的标签
+            Set<String> selectedTags = new LinkedHashSet<>();
+            for (JToggleButton btn : tagButtons) {
+                if (btn.isSelected()) {
+                    selectedTags.add(btn.getText().trim());
+                }
+            }
+
+            if (selectedTags.isEmpty()) {
+                showMessage("请先选择要移除的标签", "提示");
+                return;
+            }
+
+            if (selectedFiles.isEmpty()) {
+                showMessage("请先选择要移除标签的文件", "提示");
+                return;
+            }
+
+            performRemove(path, selectedFiles, selectedTags, refreshAction);
+        });
+
+        JButton removeRefreshButton = new JButton("刷新");
+        removeRefreshButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        removeRefreshButton.setPreferredSize(new Dimension(removeRefreshButton.getPreferredSize().width + 20, 36));
+        removeRefreshButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        removeRefreshButton.setFocusPainted(false);
+        removeRefreshButton.addActionListener(e -> refreshAction.run());
 
         buttonPanel.add(removeButton);
+        buttonPanel.add(removeRefreshButton);
         panel.add(buttonPanel, BorderLayout.SOUTH);
 
         return panel;
     }
 
     /**
-     * 执行移除标签操作
+     * 执行移除标签操作，并刷新当前标签页。
      *
-     * @param paths         文件路径列表
+     * @param path          当前目录路径
+     * @param selectedFiles 已选中的文件列表
      * @param tagsToRemove  要移除的标签集合
-     * @param parentFrame   父窗口
+     * @param refreshAction 刷新回调
      */
-    private static void performRemove(List<java.nio.file.Path> paths, Set<String> tagsToRemove, JFrame parentFrame) {
+    private static void performRemove(String path, List<File> selectedFiles,
+                                      Set<String> tagsToRemove, Runnable refreshAction) {
         if (tagsToRemove.isEmpty()) {
             showMessage("请先选择要移除的标签", "提示");
             return;
         }
 
         int renamed = 0;
-        for (java.nio.file.Path p : paths) {
+        for (File file : selectedFiles) {
             try {
-                if (FileUtil.removeTags(p, tagsToRemove)) {
+                Path filePath = file.toPath();
+                if (FileUtil.removeTags(filePath, tagsToRemove)) {
                     renamed++;
                 }
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
+
         showMessage("成功从 " + renamed + " 个文件中移除标签", "完成");
-        parentFrame.dispose();
-        createTagManagerWindow(paths);
+        refreshAction.run();
     }
 
     /**

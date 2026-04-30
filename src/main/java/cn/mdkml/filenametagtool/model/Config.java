@@ -19,6 +19,10 @@ public class Config {
     public static final String KEY_EVERYTHING_PATH = "everythingPath";
     public static final String KEY_ICON_PATH = "iconPath";
     public static final String KEY_TAGS = "tag";
+    /** 添加标签页-左右分隔线位置（历史标签 / 文件+自定义标签） */
+    public static final String KEY_ADD_TAG_HORIZONTAL_DIVIDER = "addTagTab.horizontalDivider";
+    /** 添加标签页-右侧上下分隔线位置（文件列表 / 自定义标签输入） */
+    public static final String KEY_ADD_TAG_VERTICAL_DIVIDER = "addTagTab.verticalDivider";
 
 
     public static int windowX = 0;
@@ -33,5 +37,9 @@ public class Config {
     public static String everythingPath = "C:/Program Files/Everything/Everything.exe";
     public static String iconPath = "C:/Users/MU/Documents/FileNameTagTool/ico/";
     public static List<String> tags = new ArrayList<>();
+    /** 添加标签页-左右分隔线位置 */
+    public static int addTagHorizontalDivider = 0;
+    /** 添加标签页-右侧上下分隔线位置 */
+    public static int addTagVerticalDivider = 0;
 
 }

@@ -5,45 +5,56 @@ import cn.mdkml.filenametagtool.model.Parsed;
 import cn.mdkml.filenametagtool.util.SwingUtil;
 import cn.mdkml.filenametagtool.util.ConfigUtil;
 
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 
+/**
+ * FileNameTagTool 的本地测试类。
+ * <p>
+ * 用于在开发阶段快速验证标签管理窗口等功能，不作为正式测试用例。
+ * </p>
+ */
 public class FileNameTagToolTest {
-    
+
+    /**
+     * 模拟 manage 命令，打开标签管理窗口。
+     */
     public static void testSearch() {
-      // 初始化系统外观
         SwingUtil.initLookAndFeel();
-        
-        // 初始化配置
         ConfigUtil.init();
-        
-        // 模拟命令行参数
+
         String[] args = {
-            "search",
+            "manage",
             "C:\\Users\\MU\\Desktop\\【测试】FileNameTagTool"
         };
-        
-        // 解析参数
-        final Parsed parsed = FileNameTagTool.parseArgs(args);
-        
-        // 过滤有效路径
+
+        final Parsed parsed = Parsed.parseArgs(args);
+
+        // 过滤出实际存在的文件路径
         final List<Path> existing = parsed.paths.stream()
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .map(FileNameTagTool::safeToPath)
-                .filter(java.util.Objects::nonNull)
-                .filter(p -> java.nio.file.Files.exists(p, java.nio.file.LinkOption.NOFOLLOW_LINKS))
+                .filter(Objects::nonNull)
+                .filter(p -> Files.exists(p, LinkOption.NOFOLLOW_LINKS))
                 .distinct()
                 .toList();
-        
-        // 执行搜索操作
-        if (!existing.isEmpty() && parsed.action == Action.SEARCH) {
-            SwingUtil.createTagManagerWindow(existing);
+
+        if (!existing.isEmpty() && parsed.action == Action.MANAGE) {
+            SwingUtil.createTagManagerWindow(existing.get(0).toString());
         } else {
             System.out.println("没有获取到有效的文件/文件夹路径。");
         }
     }
-    
+
+    /**
+     * 测试入口。
+     *
+     * @param args 命令行参数（未使用）
+     */
     public static void main(String[] args) {
         testSearch();
     }

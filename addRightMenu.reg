@@ -62,9 +62,9 @@ Windows Registry Editor Version 5.00
 ; =========================
 ; 目录背景右键菜单：文件标签
 ; =========================
-[HKEY_CLASSES_ROOT\Directory\Background\shell\TagMenu.SearchTags]
+[HKEY_CLASSES_ROOT\Directory\Background\shell\TagMenu.ManageTags]
 "MUIVerb"="管理此目录的文件标签"
 "Icon"="C:\\Users\\MU\\Documents\\FileNameTagTool\\ico\\tags.ico"
 
-[HKEY_CLASSES_ROOT\Directory\Background\shell\TagMenu.SearchTags\command]
-@="\"C:\\Program Files\\Java\\jdk-17\\bin\\javaw.exe\" -jar \"C:\\Users\\MU\\Documents\\FileNameTagTool\\target\\filename-tagtool-1.0.0.jar\" search \"%V\""
+[HKEY_CLASSES_ROOT\Directory\Background\shell\TagMenu.ManageTags\command]
+@="\"C:\\Program Files\\Java\\jdk-17\\bin\\javaw.exe\" -jar \"C:\\Users\\MU\\Documents\\FileNameTagTool\\target\\filename-tagtool-1.0.0.jar\" manage \"%V\""
