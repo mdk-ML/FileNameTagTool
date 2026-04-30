@@ -97,7 +97,7 @@ public final class FileNameTagTool {
                 try {
                     boolean success;
                     if (action == Action.ADD) {
-                        success = FileUtil.addTagsToNamePrefix(path, addTags);
+                        success = FileUtil.addTags(path, addTags);
                     } else if (action == Action.REMOVE) {
                         success = FileUtil.removeTags(path, removeTags);
                     } else if (action == Action.NEW_VERSION) {

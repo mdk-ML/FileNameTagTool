@@ -1090,12 +1090,15 @@ public final class SwingUtil {
      */
     private static void applyTagToSelectedFiles(String path, List<File> selectedFiles,
                                                 List<String> tags, Runnable refreshAction) {
+        // 先记录新标签到配置，确保 Config.tags 已更新
+        TagUtil.rememberTags(tags, new HashSet<>());
+
         int renamed = 0;
         List<String> failedFiles = new ArrayList<>();
         for (File file : selectedFiles) {
             try {
                 Path filePath = file.toPath();
-                if (FileUtil.addTagsToNamePrefix(filePath, tags)) {
+                if (FileUtil.addTags(filePath, tags)) {
                     renamed++;
                 }
             } catch (Exception ex) {
@@ -1106,7 +1109,6 @@ public final class SwingUtil {
             showError("以下文件添加标签失败：\n" + String.join("\n", failedFiles));
         }
         showSuccess("成功为 " + renamed + " 个文件添加标签");
-        TagUtil.rememberTags(tags, new HashSet<>());
         refreshAction.run();
     }
 

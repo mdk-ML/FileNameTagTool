@@ -10,17 +10,23 @@ import java.util.Set;
 public final class TagUtil {
 
     /**
-     * 记住标签到配置中
+     * 记住新标签到配置中。
+     * 已存在的标签保持原位不变，新标签插入到 {文件名} 占位符前面。
      *
      * @param tags      标签列表
      * @param smartTags 智能标签集合
      */
     public static void rememberTags(List<String> tags, Set<String> smartTags) {
-        if (tags == null || tags.isEmpty()) return;
+        if (tags == null || tags.isEmpty()) {
+            return;
+        }
 
         List<String> incoming = normalizeTags(tags);
-        if (incoming.isEmpty()) return;
+        if (incoming.isEmpty()) {
+            return;
+        }
 
+        // 过滤掉智能标签
         List<String> filteredIncoming = new ArrayList<>();
         for (String tag : incoming) {
             if (smartTags == null || !smartTags.contains(tag)) {
@@ -28,27 +34,43 @@ public final class TagUtil {
             }
         }
         incoming = filteredIncoming;
-        if (incoming.isEmpty()) return;
+        if (incoming.isEmpty()) {
+            return;
+        }
 
         ConfigUtil.reload();
         List<String> old = new ArrayList<>(Config.tags);
-        LinkedHashSet<String> merged = new LinkedHashSet<>();
-        for (String t : old) {
-            if (t == null) continue;
-            String tt = t.trim();
-            if (tt.isEmpty()) continue;
-            boolean isDup = false;
-            for (String v : incoming) {
-                if (tt.equalsIgnoreCase(v)) {
-                    isDup = true;
+
+        // 筛选出尚未记录的新标签
+        List<String> newTags = new ArrayList<>();
+        for (String tag : incoming) {
+            boolean exists = false;
+            for (String existing : old) {
+                if (tag.equalsIgnoreCase(existing)) {
+                    exists = true;
                     break;
                 }
             }
-            if (!isDup) merged.add(tt);
+            if (!exists) {
+                newTags.add(tag);
+            }
         }
-        merged.addAll(incoming);
 
-        Config.tags = new ArrayList<>(merged);
+        if (newTags.isEmpty()) {
+            return;
+        }
+
+        // 找到 {文件名} 的位置，将新标签插入到它后面
+        int insertIndex = old.indexOf(FileUtil.TAG_ORDER_FILENAME);
+        if (insertIndex < 0) {
+            // 没有 {文件名} 占位符，追加到末尾
+            insertIndex = old.size();
+        } else {
+            insertIndex += 1;
+        }
+        old.addAll(insertIndex, newTags);
+
+        Config.tags = old;
         ConfigUtil.save();
     }
 

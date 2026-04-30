@@ -21,27 +21,67 @@ public final class FileUtil {
     public static final String TAG_ORDER_VERSION = "{版本号}";
 
     /**
-     * 向文件名前缀添加标签
+     * 按照 Config.tags 的顺序重构文件名，将新标签合并到已有标签中。
+     * <p>
+     * 处理流程：
+     * 1. 解析文件名中已有的所有标签
+     * 2. 合并已有标签和新标签（去重）
+     * 3. 按照 Config.tags 的全局顺序重新构建文件名
+     * </p>
      *
      * @param path    文件路径
      * @param addTags 要添加的标签列表
-     * @return 是否成功添加标签
+     * @return 是否成功重命名
      * @throws IOException 如果文件操作失败
      */
-    public static boolean addTagsToNamePrefix(Path path, List<String> addTags) throws IOException {
-        if (addTags == null || addTags.isEmpty()) return false;
+    public static boolean addTags(Path path, List<String> addTags) throws IOException {
+        if (addTags == null || addTags.isEmpty()) {
+            return false;
+        }
 
         Path parent = path.getParent();
         Path fileName = path.getFileName();
-        if (parent == null || fileName == null) return false;
+        if (parent == null || fileName == null) {
+            return false;
+        }
 
         String leaf = fileName.toString();
-        String newLeaf = addTagsToLeafPreserveExt(leaf, addTags);
-        if (newLeaf.equals(leaf)) return false;
+        int dot = leaf.lastIndexOf('.');
+        String base;
+        String ext;
+        if (dot > 0) {
+            base = leaf.substring(0, dot);
+            ext = leaf.substring(dot);
+        } else {
+            base = leaf;
+            ext = "";
+        }
+
+        // 解析已有标签，提取纯文件名
+        List<String> existing = parseAllTags(base);
+        String rest = ALL_TAGS_PATTERN.matcher(base).replaceAll("");
+
+        // 合并已有标签和新标签
+        java.util.LinkedHashSet<String> merged = new java.util.LinkedHashSet<>();
+        for (String tag : addTags) {
+            if (!containsIgnoreCase(merged, tag)) {
+                merged.add(tag);
+            }
+        }
+        for (String tag : existing) {
+            if (!containsIgnoreCase(merged, tag)) {
+                merged.add(tag);
+            }
+        }
+
+        // 按 Config.tags 顺序重构文件名
+        String newLeaf = buildOrderedName(rest, new ArrayList<>(merged)) + ext;
+        if (newLeaf.equals(leaf)) {
+            return false;
+        }
 
         Path target = parent.resolve(newLeaf);
         target = ensureNonExisting(target);
-
         Files.move(path, target);
         return true;
     }
@@ -173,7 +213,7 @@ public final class FileUtil {
             return false;
         }
 
-        String newLeaf = buildOrderedPrefix(rest, existing) + ext;
+        String newLeaf = buildOrderedName(rest, existing) + ext;
         if (newLeaf.equals(leaf)) {
             return false;
         }
@@ -212,61 +252,26 @@ public final class FileUtil {
     }
 
     /**
-     * 向文件名添加标签，保留扩展名
+     * 按照 Config.tags 的全局顺序重构完整文件名。
+     * 单次遍历 configOrder，依次放置普通标签、源文件名、版本号标签，
+     * 最后追加不在配置中的标签。
      *
-     * @param leaf    文件名
-     * @param addTags 要添加的标签列表
-     * @return 新的文件名
+     * @param baseName 源文件名（不含标签和扩展名）
+     * @param tags     所有标签列表
+     * @return 重构后的完整文件名（不含扩展名）
      */
-    private static String addTagsToLeafPreserveExt(String leaf, List<String> addTags) {
-        int dot = leaf.lastIndexOf('.');
-        if (dot > 0) {
-            String base = leaf.substring(0, dot);
-            String ext = leaf.substring(dot);
-            return addTagsToBase(base, addTags) + ext;
-        }
-        return addTagsToBase(leaf, addTags);
-    }
-
-    /**
-     * 向文件基础名添加标签
-     *
-     * @param base    文件基础名
-     * @param addTags 要添加的标签列表
-     * @return 新的文件基础名
-     */
-    private static String addTagsToBase(String base, List<String> addTags) {
-        List<String> existing = parseAllTags(base);
-        String rest = ALL_TAGS_PATTERN.matcher(base).replaceAll("");
-
-        java.util.LinkedHashSet<String> merged = new java.util.LinkedHashSet<>();
-        for (String tag : addTags) {
-            if (!containsIgnoreCase(merged, tag)) {
-                merged.add(tag);
-            }
-        }
-        for (String tag : existing) {
-            if (!containsIgnoreCase(merged, tag)) {
-                merged.add(tag);
-            }
-        }
-
-        return buildOrderedPrefix(rest, new ArrayList<>(merged));
-    }
-
-    /**
-     * 按照 Config.tags 中的全局顺序对标签列表排序。
-     * 不在 Config.tags 中的标签追加到末尾。
-     *
-     * @param tags 待排序的标签列表
-     * @return 排序后的标签列表
-     */
-    private static List<String> sortByConfigOrder(List<String> tags) {
+    private static String buildOrderedName(String baseName, List<String> tags) {
         List<String> configOrder = Config.tags;
         if (configOrder.isEmpty()) {
-            return tags;
+            StringBuilder fallback = new StringBuilder();
+            for (String tag : tags) {
+                fallback.append("【").append(tag).append("】");
+            }
+            fallback.append(baseName);
+            return fallback.toString();
         }
 
+        // 分类标签
         List<String> normalTags = new ArrayList<>();
         List<String> versionTags = new ArrayList<>();
         for (String tag : tags) {
@@ -277,106 +282,53 @@ public final class FileUtil {
             }
         }
 
-        List<String> result = new ArrayList<>();
-        for (String configTag : configOrder) {
-            if (TAG_ORDER_FILENAME.equals(configTag)) {
-                continue;
-            }
-            if (TAG_ORDER_VERSION.equals(configTag)) {
-                result.addAll(versionTags);
-                versionTags.clear();
-                continue;
-            }
-            for (String tag : normalTags) {
-                if (tag.equalsIgnoreCase(configTag) && !containsIgnoreCase(result, tag)) {
-                    result.add(tag);
-                    break;
-                }
-            }
-        }
-        // 追加剩余版本号标签
-        result.addAll(versionTags);
-        // 追加不在配置中的普通标签
-        for (String tag : normalTags) {
-            if (!containsIgnoreCase(result, tag)) {
-                result.add(tag);
-            }
-        }
-        return result;
-    }
+        // 标记已使用的标签
+        boolean[] normalUsed = new boolean[normalTags.size()];
+        boolean[] versionUsed = new boolean[versionTags.size()];
+        boolean baseNamePlaced = false;
 
-    /**
-     * 按照 Config.tags 的全局顺序构建文件名前缀。
-     * 支持"文件名"和"版本号"特殊占位：
-     * - "文件名"决定源文件名（rest）的插入位置
-     * - "版本号"决定版本号标签的插入位置
-     *
-     * @param baseName 源文件名（不含标签和扩展名）
-     * @param tags     标签列表
-     * @return 构建好的文件名前缀（含标签和源文件名）
-     */
-    private static String buildOrderedPrefix(String baseName, List<String> tags) {
-        List<String> configOrder = Config.tags;
-        List<String> orderedTags = sortByConfigOrder(tags);
-        // 分离版本号标签和普通标签
-        List<String> normalTags = new ArrayList<>();
-        List<String> versionTags = new ArrayList<>();
-        for (String tag : orderedTags) {
-            if (VERSION_TAG_PATTERN.matcher(tag).matches()) {
-                versionTags.add(tag);
-            } else {
-                normalTags.add(tag);
-            }
-        }
+        StringBuilder result = new StringBuilder();
 
-        StringBuilder prefix = new StringBuilder();
-        int normalIndex = 0;
-        int versionIndex = 0;
-        boolean baseNameInserted = false;
-
-        if (configOrder.isEmpty()) {
-            // 无配置：所有标签 + 文件名
-            for (String tag : normalTags) {
-                prefix.append("【").append(tag).append("】");
-            }
-            for (String tag : versionTags) {
-                prefix.append("【").append(tag).append("】");
-            }
-            prefix.append(baseName);
-            return prefix.toString();
-        }
-
+        // 按 configOrder 顺序依次放置
         for (String orderItem : configOrder) {
             if (TAG_ORDER_FILENAME.equals(orderItem)) {
-                prefix.append(baseName);
-                baseNameInserted = true;
+                result.append(baseName);
+                baseNamePlaced = true;
             } else if (TAG_ORDER_VERSION.equals(orderItem)) {
-                while (versionIndex < versionTags.size()) {
-                    prefix.append("【").append(versionTags.get(versionIndex)).append("】");
-                    versionIndex++;
+                for (int i = 0; i < versionTags.size(); i++) {
+                    result.append("【").append(versionTags.get(i)).append("】");
+                    versionUsed[i] = true;
                 }
             } else {
-                // 普通标签位置
-                if (normalIndex < normalTags.size()) {
-                    prefix.append("【").append(normalTags.get(normalIndex)).append("】");
-                    normalIndex++;
+                // 普通标签：查找与 configOrder 匹配的标签
+                for (int i = 0; i < normalTags.size(); i++) {
+                    if (!normalUsed[i] && normalTags.get(i).equalsIgnoreCase(orderItem)) {
+                        result.append("【").append(normalTags.get(i)).append("】");
+                        normalUsed[i] = true;
+                        break;
+                    }
                 }
             }
         }
-        // 追加剩余标签
-        while (normalIndex < normalTags.size()) {
-            prefix.append("【").append(normalTags.get(normalIndex)).append("】");
-            normalIndex++;
+
+        // 追加不在 configOrder 中的剩余标签
+        for (int i = 0; i < normalTags.size(); i++) {
+            if (!normalUsed[i]) {
+                result.append("【").append(normalTags.get(i)).append("】");
+            }
         }
-        while (versionIndex < versionTags.size()) {
-            prefix.append("【").append(versionTags.get(versionIndex)).append("】");
-            versionIndex++;
+        for (int i = 0; i < versionTags.size(); i++) {
+            if (!versionUsed[i]) {
+                result.append("【").append(versionTags.get(i)).append("】");
+            }
         }
-        // 如果文件名未在配置中指定位置，追加到末尾
-        if (!baseNameInserted) {
-            prefix.append(baseName);
+
+        // 文件名未在配置中指定位置，追加到末尾
+        if (!baseNamePlaced) {
+            result.append(baseName);
         }
-        return prefix.toString();
+
+        return result.toString();
     }
 
     /**
