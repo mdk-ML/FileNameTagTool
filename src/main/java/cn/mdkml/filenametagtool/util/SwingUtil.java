@@ -7,6 +7,8 @@ import cn.mdkml.filenametagtool.model.Config;
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
 import java.awt.*;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.Transferable;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
@@ -180,7 +182,12 @@ public final class SwingUtil {
      */
     public static Object[] askTagsWithHistory() {
         ConfigUtil.reload();
-        List<String> history = new ArrayList<>(Config.tags);
+        List<String> history = new ArrayList<>();
+        for (String tag : Config.tags) {
+            if (!FileUtil.TAG_ORDER_FILENAME.equals(tag) && !FileUtil.TAG_ORDER_VERSION.equals(tag)) {
+                history.add(tag);
+            }
+        }
 
         final JTextArea input = new JTextArea();
         input.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 14));
@@ -474,7 +481,7 @@ public final class SwingUtil {
             java.nio.file.Path fileName = file.getFileName();
             if (fileName != null) {
                 String name = fileName.toString();
-                List<String> tags = parseLeadingTags(name);
+                List<String> tags = FileUtil.parseAllTags(name);
                 existingFileTags.addAll(tags);
             }
         }
@@ -665,13 +672,16 @@ public final class SwingUtil {
         final Runnable[] refreshSearch = new Runnable[1];
         final Runnable[] refreshAddTag = new Runnable[1];
         final Runnable[] refreshRemoveTag = new Runnable[1];
+        final Runnable[] refreshSettings = new Runnable[1];
         refreshSearch[0] = () -> finalTabbedPane.setComponentAt(0, createSearchTab(finalPath, refreshSearch[0]));
         refreshAddTag[0] = () -> finalTabbedPane.setComponentAt(1, createAddTagTab(finalPath, refreshAddTag[0]));
         refreshRemoveTag[0] = () -> finalTabbedPane.setComponentAt(2, createRemoveTagTab(finalPath, refreshRemoveTag[0]));
+        refreshSettings[0] = () -> finalTabbedPane.setComponentAt(3, createSettingsTab(finalPath, refreshSettings[0]));
 
         tabbedPane.addTab("搜索", null, createSearchTab(path, refreshSearch[0]));
         tabbedPane.addTab("添加标签", null, createAddTagTab(path, refreshAddTag[0]));
         tabbedPane.addTab("移除标签", null, createRemoveTagTab(path, refreshRemoveTag[0]));
+        tabbedPane.addTab("设置", null, createSettingsTab(path, refreshSettings[0]));
 
         // 切换标签时刷新对应面板内容
         tabbedPane.addChangeListener(e -> {
@@ -680,6 +690,7 @@ public final class SwingUtil {
                 case 0 -> refreshSearch[0].run();
                 case 1 -> refreshAddTag[0].run();
                 case 2 -> refreshRemoveTag[0].run();
+                case 3 -> refreshSettings[0].run();
             }
         });
 
@@ -859,7 +870,12 @@ public final class SwingUtil {
 
         // ==================== 左侧：历史标签模块 ====================
         ConfigUtil.reload();
-        List<String> history = new ArrayList<>(Config.tags);
+        List<String> history = new ArrayList<>();
+        for (String tag : Config.tags) {
+            if (!FileUtil.TAG_ORDER_FILENAME.equals(tag) && !FileUtil.TAG_ORDER_VERSION.equals(tag)) {
+                history.add(tag);
+            }
+        }
         JPanel tagsPanel = new JPanel();
         tagsPanel.setLayout(new BoxLayout(tagsPanel, BoxLayout.Y_AXIS));
         tagsPanel.setBackground(BG_CONTENT);
@@ -1124,7 +1140,7 @@ public final class SwingUtil {
         if (files != null) {
             for (File file : files) {
                 if (file.isFile()) {
-                    List<String> tags = parseLeadingTags(file.getName());
+                    List<String> tags = FileUtil.parseAllTags(file.getName());
                     if (!tags.isEmpty()) {
                         taggedFiles.add(file);
                         existingFileTags.addAll(tags);
@@ -1268,7 +1284,304 @@ public final class SwingUtil {
     }
 
     /**
-     * 执行移除标签操作，并刷新当前标签页。
+     * 创建设置面板。
+     * <p>
+     * 包含 Everything 工具路径配置和历史标签拖拽排序功能。
+     * 支持保存配置和按标签顺序重命名目录中的文件。
+     * </p>
+     *
+     * @param path         目录路径
+     * @param refreshAction 刷新回调
+     * @return 设置面板
+     */
+    private static JPanel createSettingsTab(String path, Runnable refreshAction) {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        panel.setBackground(BG_CONTENT);
+
+        ConfigUtil.reload();
+
+        // ==================== 上部：Everything 路径配置 ====================
+        JPanel pathPanel = new JPanel(new BorderLayout(8, 0));
+        pathPanel.setBackground(BG_CONTENT);
+        pathPanel.setBorder(BorderFactory.createTitledBorder("Everything 工具路径"));
+
+        JTextField pathField = new JTextField(Config.everythingPath);
+        pathField.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        pathField.setPreferredSize(new Dimension(400, 32));
+        pathPanel.add(pathField, BorderLayout.CENTER);
+
+        // ==================== 中部：标签排序 ====================
+        JPanel tagsContainer = new JPanel(new BorderLayout());
+        tagsContainer.setBackground(BG_CONTENT);
+        tagsContainer.setBorder(BorderFactory.createTitledBorder("标签排序（拖拽调整）"));
+
+        DefaultListModel<String> tagListModel = new DefaultListModel<>();
+        boolean hasFilename = false;
+        boolean hasVersion = false;
+        for (String tag : Config.tags) {
+            tagListModel.addElement(tag);
+            if (FileUtil.TAG_ORDER_FILENAME.equals(tag)) {
+                hasFilename = true;
+            }
+            if (FileUtil.TAG_ORDER_VERSION.equals(tag)) {
+                hasVersion = true;
+            }
+        }
+        // 首次使用时，添加默认的特殊占位项
+        if (!hasFilename) {
+            tagListModel.add(0, FileUtil.TAG_ORDER_FILENAME);
+        }
+        if (!hasVersion) {
+            int filenameIndex = tagListModel.indexOf(FileUtil.TAG_ORDER_FILENAME);
+            tagListModel.add(filenameIndex + 1, FileUtil.TAG_ORDER_VERSION);
+        }
+
+        JList<String> tagJList = new JList<>(tagListModel);
+        tagJList.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        tagJList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        tagJList.setCellRenderer(new TagListCellRenderer());
+        tagJList.setDragEnabled(true);
+        tagJList.setDropMode(DropMode.INSERT);
+        tagJList.setTransferHandler(new TagListTransferHandler(tagListModel));
+        tagJList.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        JScrollPane tagsScroll = new JScrollPane(tagJList);
+        tagsScroll.setBackground(BG_CONTENT);
+        tagsContainer.add(tagsScroll, BorderLayout.CENTER);
+
+        // 上下布局：路径 + 标签排序
+        JPanel centerPanel = new JPanel();
+        centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
+        centerPanel.setBackground(BG_CONTENT);
+        pathPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, pathPanel.getPreferredSize().height + 10));
+        centerPanel.add(pathPanel);
+        centerPanel.add(Box.createVerticalStrut(10));
+        centerPanel.add(tagsContainer);
+
+        panel.add(centerPanel, BorderLayout.CENTER);
+
+        // ==================== 底部按钮区 ====================
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        buttonPanel.setBackground(BG_CONTENT);
+
+        JButton saveButton = new JButton("保存");
+        saveButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        saveButton.setPreferredSize(new Dimension(saveButton.getPreferredSize().width + 20, 36));
+        saveButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        saveButton.setFocusPainted(false);
+        saveButton.addActionListener(e -> {
+            Config.everythingPath = pathField.getText().trim();
+            // 保存完整排序顺序（含"文件名"和"版本号"占位符）
+            Config.tags = Collections.list(tagListModel.elements());
+            ConfigUtil.save();
+            showSuccess("配置已保存");
+        });
+
+        JButton reorderButton = new JButton("重排此目录标签顺序");
+        reorderButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        reorderButton.setPreferredSize(new Dimension(reorderButton.getPreferredSize().width + 20, 36));
+        reorderButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        reorderButton.setFocusPainted(false);
+        reorderButton.addActionListener(e -> {
+            // 先保存当前配置（含完整排序顺序）
+            Config.everythingPath = pathField.getText().trim();
+            Config.tags = Collections.list(tagListModel.elements());
+            ConfigUtil.save();
+            // 执行重排
+            reorderDirectoryTags(path);
+        });
+
+        JButton rescanButton = new JButton("重新扫描历史标签");
+        rescanButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        rescanButton.setPreferredSize(new Dimension(rescanButton.getPreferredSize().width + 20, 36));
+        rescanButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        rescanButton.setFocusPainted(false);
+        rescanButton.addActionListener(e -> {
+            // 扫描当前目录所有文件的标签，排除版本号标签
+            LinkedHashSet<String> scannedTags = new LinkedHashSet<>();
+            File currentDir = new File(path);
+            File[] files = currentDir.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    if (file.isFile()) {
+                        for (String tag : FileUtil.parseAllTags(file.getName())) {
+                            // 排除版本号标签
+                            if (!FileUtil.VERSION_TAG_PATTERN.matcher(tag).matches()) {
+                                scannedTags.add(tag);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 保留特殊占位项，重建列表模型
+            tagListModel.clear();
+            tagListModel.addElement(FileUtil.TAG_ORDER_FILENAME);
+            tagListModel.addElement(FileUtil.TAG_ORDER_VERSION);
+            for (String tag : scannedTags) {
+                tagListModel.addElement(tag);
+            }
+
+            // 保存到配置
+            Config.everythingPath = pathField.getText().trim();
+            Config.tags = Collections.list(tagListModel.elements());
+            ConfigUtil.save();
+            showSuccess("已扫描到 " + scannedTags.size() + " 个标签");
+        });
+
+        buttonPanel.add(saveButton);
+        buttonPanel.add(rescanButton);
+        buttonPanel.add(reorderButton);
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+
+        return panel;
+    }
+
+    /**
+     * 按照 Config.tags 的全局顺序重排目录中所有文件的标签顺序。
+     *
+     * @param dirPath 目录路径
+     */
+    private static void reorderDirectoryTags(String dirPath) {
+        File currentDir = new File(dirPath);
+        File[] files = currentDir.listFiles();
+        if (files == null) {
+            showMessage("目录为空或无法访问");
+            return;
+        }
+
+        int reordered = 0;
+        for (File file : files) {
+            if (file.isFile()) {
+                try {
+                    if (FileUtil.reorderTags(file.toPath())) {
+                        reordered++;
+                    }
+                } catch (Exception e) {
+                    // 跳过无法重命名的文件
+                }
+            }
+        }
+        showSuccess("已重排 " + reordered + " 个文件的标签顺序");
+    }
+
+    /**
+     * 标签列表单元格渲染器，为普通标签和特殊占位项提供不同的样式。
+     */
+    private static class TagListCellRenderer extends DefaultListCellRenderer {
+        private static final Color SPECIAL_BG = new Color(255, 248, 225);
+        private static final Color SPECIAL_FG = new Color(180, 130, 0);
+
+        @Override
+        public Component getListCellRendererComponent(JList<?> list, Object value,
+                                                      int index, boolean isSelected,
+                                                      boolean cellHasFocus) {
+            JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+            label.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+            label.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_GRAY),
+                    BorderFactory.createEmptyBorder(8, 12, 8, 12)));
+
+            String text = value != null ? value.toString() : "";
+            boolean isSpecial = FileUtil.TAG_ORDER_FILENAME.equals(text) || FileUtil.TAG_ORDER_VERSION.equals(text);
+
+            if (isSelected) {
+                // 选中状态保持系统默认
+            } else if (isSpecial) {
+                label.setBackground(SPECIAL_BG);
+                label.setForeground(SPECIAL_FG);
+                // 为特殊项添加描述
+                if (FileUtil.TAG_ORDER_FILENAME.equals(text)) {
+                    label.setText("{文件名}  —  源文件名在标签序列中的位置");
+                } else if (FileUtil.TAG_ORDER_VERSION.equals(text)) {
+                    label.setText("{版本号}  —  版本号（如 V1、V2）在标签序列中的位置");
+                }
+            } else {
+                label.setBackground(BG_WHITE);
+                label.setForeground(TEXT_DARK);
+            }
+            return label;
+        }
+    }
+
+    /**
+     * 标签列表拖拽传输处理器，支持在 JList 内部拖拽重排序。
+     */
+    private static class TagListTransferHandler extends TransferHandler {
+        private final DefaultListModel<String> model;
+        private int dragIndex = -1;
+
+        TagListTransferHandler(DefaultListModel<String> model) {
+            this.model = model;
+        }
+
+        @Override
+        protected Transferable createTransferable(JComponent component) {
+            JList<?> list = (JList<?>) component;
+            dragIndex = list.getSelectedIndex();
+            String value = list.getSelectedValue().toString();
+            return new Transferable() {
+                @Override
+                public DataFlavor[] getTransferDataFlavors() {
+                    return new DataFlavor[]{DataFlavor.stringFlavor};
+                }
+
+                @Override
+                public boolean isDataFlavorSupported(DataFlavor flavor) {
+                    return DataFlavor.stringFlavor.equals(flavor);
+                }
+
+                @Override
+                public Object getTransferData(DataFlavor flavor) {
+                    return value;
+                }
+            };
+        }
+
+        @Override
+        public int getSourceActions(JComponent component) {
+            return MOVE;
+        }
+
+        @Override
+        public boolean importData(TransferSupport support) {
+            if (!canImport(support)) {
+                return false;
+            }
+            JList.DropLocation dropLocation = (JList.DropLocation) support.getDropLocation();
+            int dropIndex = dropLocation.getIndex();
+
+            try {
+                String draggedItem = (String) support.getTransferable().getTransferData(DataFlavor.stringFlavor);
+                // 移除原位置的元素
+                if (dragIndex >= 0 && dragIndex < model.size()) {
+                    model.remove(dragIndex);
+                    // 调整插入位置
+                    if (dropIndex > dragIndex) {
+                        dropIndex--;
+                    }
+                }
+                // 插入到新位置
+                model.add(dropIndex, draggedItem);
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        @Override
+        public boolean canImport(TransferSupport support) {
+            return support.isDrop() && support.isDataFlavorSupported(DataFlavor.stringFlavor);
+        }
+
+        @Override
+        protected void exportDone(JComponent component, Transferable data, int action) {
+            dragIndex = -1;
+        }
+    }
+
+    /**
      *
      * @param path          当前目录路径
      * @param selectedFiles 已选中的文件列表

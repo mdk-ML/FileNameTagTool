@@ -1,14 +1,24 @@
 package cn.mdkml.filenametagtool.util;
 
+import cn.mdkml.filenametagtool.model.Config;
+
 import java.io.IOException;
 import java.nio.file.*;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
 public final class FileUtil {
 
-    private static final Pattern LEADING_TAGS_PATTERN = Pattern.compile("^(?:【[^】]*】)+");
+    /** 版本号标签正则：V数字（不含括号的内部内容） */
+    public static final Pattern VERSION_TAG_PATTERN = Pattern.compile("^V\\d+$");
+    /** 匹配所有【...】标签（不限于前导位置） */
+    private static final Pattern ALL_TAGS_PATTERN = Pattern.compile("【[^】]*】");
+    /** 标签排序中的特殊占位：源文件名位置 */
+    public static final String TAG_ORDER_FILENAME = "{文件名}";
+    /** 标签排序中的特殊占位：版本号位置 */
+    public static final String TAG_ORDER_VERSION = "{版本号}";
 
     /**
      * 向文件名前缀添加标签
@@ -132,6 +142,49 @@ public final class FileUtil {
     }
 
     /**
+     * 重排文件名中的标签顺序，使其按照 Config.tags 的全局顺序排列。
+     *
+     * @param path 文件路径
+     * @return 是否成功重排
+     * @throws IOException 如果文件操作失败
+     */
+    public static boolean reorderTags(Path path) throws IOException {
+        Path parent = path.getParent();
+        Path fileName = path.getFileName();
+        if (parent == null || fileName == null) {
+            return false;
+        }
+
+        String leaf = fileName.toString();
+        int dot = leaf.lastIndexOf('.');
+        String base;
+        String ext;
+        if (dot > 0) {
+            base = leaf.substring(0, dot);
+            ext = leaf.substring(dot);
+        } else {
+            base = leaf;
+            ext = "";
+        }
+
+        List<String> existing = parseAllTags(base);
+        String rest = ALL_TAGS_PATTERN.matcher(base).replaceAll("");
+        if (existing.isEmpty()) {
+            return false;
+        }
+
+        String newLeaf = buildOrderedPrefix(rest, existing) + ext;
+        if (newLeaf.equals(leaf)) {
+            return false;
+        }
+
+        Path target = parent.resolve(newLeaf);
+        target = ensureNonExisting(target);
+        Files.move(path, target);
+        return true;
+    }
+
+    /**
      * 确保目标路径不存在，如果存在则添加序号
      *
      * @param target 目标路径
@@ -183,19 +236,147 @@ public final class FileUtil {
      * @return 新的文件基础名
      */
     private static String addTagsToBase(String base, List<String> addTags) {
-        List<String> existing = parseLeadingTags(base);
-        String rest = removeLeadingTags(base);
+        List<String> existing = parseAllTags(base);
+        String rest = ALL_TAGS_PATTERN.matcher(base).replaceAll("");
 
         java.util.LinkedHashSet<String> merged = new java.util.LinkedHashSet<>();
-        for (String t : addTags) {
-            if (!containsIgnoreCase(merged, t)) merged.add(t);
+        for (String tag : addTags) {
+            if (!containsIgnoreCase(merged, tag)) {
+                merged.add(tag);
+            }
         }
-        for (String t : existing) {
-            if (!containsIgnoreCase(merged, t)) merged.add(t);
+        for (String tag : existing) {
+            if (!containsIgnoreCase(merged, tag)) {
+                merged.add(tag);
+            }
         }
 
-        String prefix = buildTagPrefix(new java.util.ArrayList<>(merged));
-        return prefix + rest;
+        return buildOrderedPrefix(rest, new ArrayList<>(merged));
+    }
+
+    /**
+     * 按照 Config.tags 中的全局顺序对标签列表排序。
+     * 不在 Config.tags 中的标签追加到末尾。
+     *
+     * @param tags 待排序的标签列表
+     * @return 排序后的标签列表
+     */
+    private static List<String> sortByConfigOrder(List<String> tags) {
+        List<String> configOrder = Config.tags;
+        if (configOrder.isEmpty()) {
+            return tags;
+        }
+
+        List<String> normalTags = new ArrayList<>();
+        List<String> versionTags = new ArrayList<>();
+        for (String tag : tags) {
+            if (VERSION_TAG_PATTERN.matcher(tag).matches()) {
+                versionTags.add(tag);
+            } else {
+                normalTags.add(tag);
+            }
+        }
+
+        List<String> result = new ArrayList<>();
+        for (String configTag : configOrder) {
+            if (TAG_ORDER_FILENAME.equals(configTag)) {
+                continue;
+            }
+            if (TAG_ORDER_VERSION.equals(configTag)) {
+                result.addAll(versionTags);
+                versionTags.clear();
+                continue;
+            }
+            for (String tag : normalTags) {
+                if (tag.equalsIgnoreCase(configTag) && !containsIgnoreCase(result, tag)) {
+                    result.add(tag);
+                    break;
+                }
+            }
+        }
+        // 追加剩余版本号标签
+        result.addAll(versionTags);
+        // 追加不在配置中的普通标签
+        for (String tag : normalTags) {
+            if (!containsIgnoreCase(result, tag)) {
+                result.add(tag);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 按照 Config.tags 的全局顺序构建文件名前缀。
+     * 支持"文件名"和"版本号"特殊占位：
+     * - "文件名"决定源文件名（rest）的插入位置
+     * - "版本号"决定版本号标签的插入位置
+     *
+     * @param baseName 源文件名（不含标签和扩展名）
+     * @param tags     标签列表
+     * @return 构建好的文件名前缀（含标签和源文件名）
+     */
+    private static String buildOrderedPrefix(String baseName, List<String> tags) {
+        List<String> configOrder = Config.tags;
+        List<String> orderedTags = sortByConfigOrder(tags);
+        // 分离版本号标签和普通标签
+        List<String> normalTags = new ArrayList<>();
+        List<String> versionTags = new ArrayList<>();
+        for (String tag : orderedTags) {
+            if (VERSION_TAG_PATTERN.matcher(tag).matches()) {
+                versionTags.add(tag);
+            } else {
+                normalTags.add(tag);
+            }
+        }
+
+        StringBuilder prefix = new StringBuilder();
+        int normalIndex = 0;
+        int versionIndex = 0;
+        boolean baseNameInserted = false;
+
+        if (configOrder.isEmpty()) {
+            // 无配置：所有标签 + 文件名
+            for (String tag : normalTags) {
+                prefix.append("【").append(tag).append("】");
+            }
+            for (String tag : versionTags) {
+                prefix.append("【").append(tag).append("】");
+            }
+            prefix.append(baseName);
+            return prefix.toString();
+        }
+
+        for (String orderItem : configOrder) {
+            if (TAG_ORDER_FILENAME.equals(orderItem)) {
+                prefix.append(baseName);
+                baseNameInserted = true;
+            } else if (TAG_ORDER_VERSION.equals(orderItem)) {
+                while (versionIndex < versionTags.size()) {
+                    prefix.append("【").append(versionTags.get(versionIndex)).append("】");
+                    versionIndex++;
+                }
+            } else {
+                // 普通标签位置
+                if (normalIndex < normalTags.size()) {
+                    prefix.append("【").append(normalTags.get(normalIndex)).append("】");
+                    normalIndex++;
+                }
+            }
+        }
+        // 追加剩余标签
+        while (normalIndex < normalTags.size()) {
+            prefix.append("【").append(normalTags.get(normalIndex)).append("】");
+            normalIndex++;
+        }
+        while (versionIndex < versionTags.size()) {
+            prefix.append("【").append(versionTags.get(versionIndex)).append("】");
+            versionIndex++;
+        }
+        // 如果文件名未在配置中指定位置，追加到末尾
+        if (!baseNameInserted) {
+            prefix.append(baseName);
+        }
+        return prefix.toString();
     }
 
     /**
@@ -209,10 +390,9 @@ public final class FileUtil {
         if (dot > 0) {
             String base = leaf.substring(0, dot);
             String ext = leaf.substring(dot);
-            String cleaned = removeLeadingTags(base);
-            return cleaned + ext;
+            return ALL_TAGS_PATTERN.matcher(base).replaceAll("") + ext;
         }
-        return removeLeadingTags(leaf);
+        return ALL_TAGS_PATTERN.matcher(leaf).replaceAll("");
     }
 
     /**
@@ -227,10 +407,10 @@ public final class FileUtil {
         if (dot > 0) {
             String base = leaf.substring(0, dot);
             String ext = leaf.substring(dot);
-            String cleaned = removeSpecificLeadingTags(base, tagsToRemove);
+            String cleaned = removeSpecificTags(base, tagsToRemove);
             return cleaned + ext;
         }
-        return removeSpecificLeadingTags(leaf, tagsToRemove);
+        return removeSpecificTags(leaf, tagsToRemove);
     }
 
     /**
@@ -240,20 +420,19 @@ public final class FileUtil {
      * @param tagsToRemove 要移除的标签集合
      * @return 新的基础名
      */
-    private static String removeSpecificLeadingTags(String name, Set<String> tagsToRemove) {
-        List<String> existingTags = parseLeadingTags(name);
+    private static String removeSpecificTags(String name, Set<String> tagsToRemove) {
+        List<String> existingTags = parseAllTags(name);
         List<String> remainingTags = new java.util.ArrayList<>();
         for (String tag : existingTags) {
             if (!tagsToRemove.contains(tag)) {
                 remainingTags.add(tag);
             }
         }
+        String rest = ALL_TAGS_PATTERN.matcher(name).replaceAll("");
         if (remainingTags.isEmpty()) {
-            return LEADING_TAGS_PATTERN.matcher(name).replaceFirst("");
+            return rest;
         }
-        String prefix = buildTagPrefix(remainingTags);
-        String rest = LEADING_TAGS_PATTERN.matcher(name).replaceFirst("");
-        return prefix + rest;
+        return buildTagPrefix(remainingTags) + rest;
     }
 
     /**
@@ -263,24 +442,25 @@ public final class FileUtil {
      * @return 新的基础名
      */
     private static String removeLeadingTags(String name) {
-        return LEADING_TAGS_PATTERN.matcher(name).replaceFirst("");
+        return ALL_TAGS_PATTERN.matcher(name).replaceAll("");
     }
 
     /**
-     * 解析基础名开头的标签
+     * 解析文件名中所有位置的标签（不限于前导位置）。
+     * 凡是被【】包裹的内容都视为标签。
      *
-     * @param name 基础名
+     * @param name 文件名
      * @return 标签列表
      */
-    private static List<String> parseLeadingTags(String name) {
+    public static List<String> parseAllTags(String name) {
         List<String> out = new java.util.ArrayList<>();
-        int i = 0;
-        while (i < name.length() && name.charAt(i) == '【') {
-            int end = name.indexOf('】', i + 1);
-            if (end < 0) break;
-            String inner = name.substring(i + 1, end).trim();
-            if (!inner.isEmpty()) out.add(inner);
-            i = end + 1;
+        java.util.regex.Matcher matcher = ALL_TAGS_PATTERN.matcher(name);
+        while (matcher.find()) {
+            String tag = matcher.group();
+            String inner = tag.substring(1, tag.length() - 1).trim();
+            if (!inner.isEmpty()) {
+                out.add(inner);
+            }
         }
         return out;
     }
