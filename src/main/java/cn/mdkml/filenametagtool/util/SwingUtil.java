@@ -39,55 +39,138 @@ public final class SwingUtil {
             UIManager.put("SplitPaneDivider.border", BorderFactory.createLineBorder(BG_CONTENT));
             UIManager.put("SplitPane.background", BG_CONTENT);       // 分隔线背景
         } catch (Exception e) {
-            e.printStackTrace();
+            showError("初始化系统外观失败：" + e.getMessage());
         }
         System.setProperty("java.awt.headless", "false");
     }
 
     /**
-     * 显示消息弹窗
+     * 显示提示弹窗（2 秒后自动关闭）。
      *
-     * @param msg   消息内容
-     * @param title 标题
+     * @param msg 消息内容
      */
-    public static void showMessage(String msg, String title) {
-        final JWindow window = new JWindow();
-        window.setAlwaysOnTop(true);
-        window.setSize(360, 160);
-        window.setLocationRelativeTo(null);
-        window.setOpacity(0.95f);
+    public static void showMessage(String msg) {
+        showNotification(msg, "提示", MessageType.INFO);
+    }
 
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBackground(BG_WHITE);
-        panel.setBorder(BorderFactory.createEmptyBorder(24, 32, 24, 32));
+    /**
+     * 显示成功弹窗（2 秒后自动关闭）。
+     *
+     * @param msg 消息内容
+     */
+    public static void showSuccess(String msg) {
+        showNotification(msg, "成功", MessageType.SUCCESS);
+    }
+
+    /**
+     * 显示错误弹窗（需用户手动关闭）。
+     *
+     * @param msg 错误内容
+     */
+    public static void showError(String msg) {
+        showNotification(msg, "错误", MessageType.ERROR);
+    }
+
+    /** 弹窗类型枚举 */
+    private enum MessageType { INFO, SUCCESS, ERROR }
+
+    /**
+     * 通知弹窗内部实现。
+     *
+     * @param msg 消息内容
+     * @param title 标题
+     * @param type 弹窗类型
+     */
+    private static void showNotification(String msg, String title, MessageType type) {
+        boolean isError = type == MessageType.ERROR;
+
+        JDialog dialog = new JDialog((Frame) null, title, false);
+        dialog.setAlwaysOnTop(true);
+        dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
+        dialog.setResizable(false);
+
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBackground(BG_WHITE);
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 28, 20, 28));
+
+        // 标题颜色：错误红色，成功绿色，提示蓝色
+        Color titleColor;
+        String iconText;
+        Color iconColor;
+        if (type == MessageType.ERROR) {
+            titleColor = new Color(211, 47, 47);
+            iconText = "✕";
+            iconColor = new Color(211, 47, 47);
+        } else if (type == MessageType.SUCCESS) {
+            titleColor = new Color(76, 175, 80);
+            iconText = "✓";
+            iconColor = new Color(76, 175, 80);
+        } else {
+            titleColor = GRADIENT_START;
+            iconText = "ℹ";
+            iconColor = GRADIENT_START;
+        }
 
         JLabel titleLabel = new JLabel(title);
         titleLabel.setFont(new Font("Microsoft YaHei UI", Font.BOLD, 16));
-        titleLabel.setForeground(GRADIENT_START);
-        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        titleLabel.setForeground(titleColor);
 
-        JLabel msgLabel = new JLabel("<html><body style='text-align:center;'>" + msg.replace("\n", "<br>") + "</body></html>");
+        JLabel iconLabel = new JLabel(iconText);
+        iconLabel.setFont(new Font("SansSerif", Font.BOLD, 20));
+        iconLabel.setForeground(iconColor);
+
+        JPanel headerPanel = new JPanel(new BorderLayout(12, 0));
+        headerPanel.setBackground(BG_WHITE);
+        headerPanel.add(iconLabel, BorderLayout.WEST);
+        headerPanel.add(titleLabel, BorderLayout.CENTER);
+
+        JLabel msgLabel = new JLabel("<html><body style='width:280px;'>" + msg.replace("\n", "<br>") + "</body></html>");
         msgLabel.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
         msgLabel.setForeground(TEXT_DARK);
-        msgLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        msgLabel.setHorizontalAlignment(SwingConstants.CENTER);
 
-        panel.add(titleLabel);
-        panel.add(Box.createVerticalStrut(12));
-        panel.add(msgLabel);
+        mainPanel.add(headerPanel, BorderLayout.NORTH);
+        mainPanel.add(Box.createVerticalStrut(12), BorderLayout.WEST);
+        mainPanel.add(msgLabel, BorderLayout.CENTER);
 
-        window.getContentPane().add(panel);
-        window.setVisible(true);
+        // 错误弹窗添加确定按钮，需手动关闭
+        if (isError) {
+            JButton okButton = new JButton("确定");
+            okButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+            okButton.setPreferredSize(new Dimension(80, 32));
+            okButton.setFocusPainted(false);
+            okButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            okButton.addActionListener(e -> dialog.dispose());
 
-        new Thread(() -> {
-            try {
-                Thread.sleep(2000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            SwingUtilities.invokeLater(window::dispose);
-        }).start();
+            JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+            buttonPanel.setBackground(BG_WHITE);
+            buttonPanel.add(okButton);
+            mainPanel.add(buttonPanel, BorderLayout.SOUTH);
+        }
+
+        dialog.getContentPane().add(mainPanel);
+        dialog.pack();
+        dialog.setLocationRelativeTo(null);
+
+        Dimension size = dialog.getSize();
+        int maxWidth = 400;
+        int maxHeight = 250;
+        if (size.width > maxWidth || size.height > maxHeight) {
+            dialog.setSize(Math.min(size.width, maxWidth), Math.min(size.height, maxHeight));
+        }
+
+        dialog.setVisible(true);
+
+        // 非错误弹窗 2 秒后自动关闭
+        if (!isError) {
+            new Thread(() -> {
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                SwingUtilities.invokeLater(dialog::dispose);
+            }).start();
+        }
     }
 
     /**
@@ -397,7 +480,7 @@ public final class SwingUtil {
         }
 
         if (existingFileTags.isEmpty()) {
-            showMessage("所选文件没有标签可移除。", "提示");
+            showMessage("所选文件没有标签可移除。");
             return null;
         }
 
@@ -504,14 +587,14 @@ public final class SwingUtil {
 
         // 1. 空值检查
         if (path == null) {
-            showMessage("路径参数不能为空", "错误");
+            showError("路径参数不能为空");
             return;
         }
 
         // 2. 空字符串检查
         path = path.trim();
         if (path.isEmpty()) {
-            showMessage("路径字符串不能为空", "错误");
+            showError("路径字符串不能为空");
             return;
         }
 
@@ -519,30 +602,30 @@ public final class SwingUtil {
 
         // 3. 路径存在性检查
         if (!Files.exists(dirPath)) {
-            showMessage("路径不存在: " + path, "错误");
+            showError("路径不存在: " + path);
             return;
         }
 
         // 4. 目录类型检查（严格验证：必须是目录）
         if (!Files.isDirectory(dirPath)) {
-            showMessage("参数类型不匹配：" + path + "\n请提供有效的目录路径，而非文件路径", "错误");
+            showError("参数类型不匹配：" + path + "\n请提供有效的目录路径，而非文件路径");
             return;
         }
 
         // 5. 目录可读性检查
         if (!Files.isReadable(dirPath)) {
-            showMessage("无法读取目录：" + path + "\n请检查目录权限", "错误");
+            showError("无法读取目录：" + path + "\n请检查目录权限");
             return;
         }
 
         // 6. 空目录检查
         try {
             if (Files.list(dirPath).filter(Files::isRegularFile).count() == 0) {
-                showMessage("目录为空：" + path, "提示");
+                showMessage("目录为空：" + path);
                 return;
             }
         } catch (IOException e) {
-            showMessage("无法访问目录: " + path + "\n错误: " + e.getMessage(), "错误");
+            showError("无法访问目录: " + path + "\n错误: " + e.getMessage());
             return;
         }
 
@@ -556,7 +639,7 @@ public final class SwingUtil {
             icons.add(new ImageIcon(iconBasePath + "tags-64.png").getImage());
             frame.setIconImages(icons);
         } catch (Exception e) {
-            System.err.println("Failed to load icons: " + e.getMessage());
+            showError("加载图标失败：" + e.getMessage());
         }
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         frame.setResizable(true);
@@ -698,11 +781,7 @@ public final class SwingUtil {
                                 }
                             }
                             String searchQuery = path + " 【" + tag + "】";
-                            try {
-                                EverythingUtil.launchEverythingUI(searchQuery, Config.everythingPath);
-                            } catch (Exception ex) {
-                                ex.printStackTrace();
-                            }
+                            EverythingUtil.launchEverythingUI(searchQuery, Config.everythingPath);
                         }
                     }
                 });
@@ -738,11 +817,7 @@ public final class SwingUtil {
                 for (String tag : selectedTags) {
                     queryBuilder.append(" 【").append(tag).append("】");
                 }
-                try {
-                    EverythingUtil.launchEverythingUI(queryBuilder.toString(), Config.everythingPath);
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                }
+                EverythingUtil.launchEverythingUI(queryBuilder.toString(), Config.everythingPath);
             }
         });
 
@@ -803,7 +878,7 @@ public final class SwingUtil {
                 public void mouseClicked(MouseEvent event) {
                     if (event.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(event)) {
                         if (selectedFiles.isEmpty()) {
-                            showMessage("请先在右侧选择要添加标签的文件", "提示");
+                            showMessage("请先在右侧选择要添加标签的文件");
                             return;
                         }
                         applyTagToSelectedFiles(path, selectedFiles, List.of(tag), refreshAction);
@@ -963,12 +1038,12 @@ public final class SwingUtil {
             allTags.addAll(customTags);
 
             if (allTags.isEmpty()) {
-                showMessage("请输入或选择要添加的标签", "提示");
+                showMessage("请输入或选择要添加的标签");
                 return;
             }
 
             if (selectedFiles.isEmpty()) {
-                showMessage("请先选择要添加标签的文件", "提示");
+                showMessage("请先选择要添加标签的文件");
                 return;
             }
 
@@ -1000,6 +1075,7 @@ public final class SwingUtil {
     private static void applyTagToSelectedFiles(String path, List<File> selectedFiles,
                                                 List<String> tags, Runnable refreshAction) {
         int renamed = 0;
+        List<String> failedFiles = new ArrayList<>();
         for (File file : selectedFiles) {
             try {
                 Path filePath = file.toPath();
@@ -1007,10 +1083,13 @@ public final class SwingUtil {
                     renamed++;
                 }
             } catch (Exception ex) {
-                ex.printStackTrace();
+                failedFiles.add(file.getName());
             }
         }
-        showMessage("成功为 " + renamed + " 个文件添加标签", "完成");
+        if (!failedFiles.isEmpty()) {
+            showError("以下文件添加标签失败：\n" + String.join("\n", failedFiles));
+        }
+        showSuccess("成功为 " + renamed + " 个文件添加标签");
         TagUtil.rememberTags(tags, new HashSet<>());
         refreshAction.run();
     }
@@ -1073,7 +1152,7 @@ public final class SwingUtil {
                 public void mouseClicked(MouseEvent event) {
                     if (event.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(event)) {
                         if (selectedFiles.isEmpty()) {
-                            showMessage("请先在右侧选择要移除标签的文件", "提示");
+                            showMessage("请先在右侧选择要移除标签的文件");
                             return;
                         }
                         performRemove(path, selectedFiles, Set.of(tag), refreshAction);
@@ -1162,12 +1241,12 @@ public final class SwingUtil {
             }
 
             if (selectedTags.isEmpty()) {
-                showMessage("请先选择要移除的标签", "提示");
+                showMessage("请先选择要移除的标签");
                 return;
             }
 
             if (selectedFiles.isEmpty()) {
-                showMessage("请先选择要移除标签的文件", "提示");
+                showMessage("请先选择要移除标签的文件");
                 return;
             }
 
@@ -1199,11 +1278,12 @@ public final class SwingUtil {
     private static void performRemove(String path, List<File> selectedFiles,
                                       Set<String> tagsToRemove, Runnable refreshAction) {
         if (tagsToRemove.isEmpty()) {
-            showMessage("请先选择要移除的标签", "提示");
+            showMessage("请先选择要移除的标签");
             return;
         }
 
         int renamed = 0;
+        List<String> failedFiles = new ArrayList<>();
         for (File file : selectedFiles) {
             try {
                 Path filePath = file.toPath();
@@ -1211,11 +1291,14 @@ public final class SwingUtil {
                     renamed++;
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                failedFiles.add(file.getName());
             }
         }
+        if (!failedFiles.isEmpty()) {
+            showError("以下文件移除标签失败：\n" + String.join("\n", failedFiles));
+        }
 
-        showMessage("成功从 " + renamed + " 个文件中移除标签", "完成");
+        showSuccess("成功从 " + renamed + " 个文件中移除标签");
         refreshAction.run();
     }
 

@@ -127,13 +127,19 @@ public class EverythingUtil {
     // 单例模式
     private static final EverythingUtil INSTANCE = new EverythingUtil();
 
+    /** DLL 是否加载成功 */
+    private final boolean loaded;
+
     private EverythingUtil() {
-        // 检查DLL是否加载成功
+        boolean success;
         try {
             EverythingDll.INSTANCE.Everything_GetLastError();
+            success = true;
         } catch (Throwable e) {
-            throw new RuntimeException("加载Everything DLL失败，请确保Everything32.dll/Everything64.dll在项目根目录", e);
+            SwingUtil.showError("加载 Everything DLL 失败，请确保 Everything32.dll/Everything64.dll 在项目根目录");
+            success = false;
         }
+        this.loaded = success;
     }
 
     public static EverythingUtil getInstance() {
@@ -154,6 +160,10 @@ public class EverythingUtil {
                                      boolean matchPath, boolean useRegex) {
         List<SearchResult> results = new ArrayList<>();
 
+        if (!loaded) {
+            return results;
+        }
+
         try {
             // 重置之前的搜索状态
             EverythingDll.INSTANCE.Everything_Reset();
@@ -169,7 +179,8 @@ public class EverythingUtil {
             boolean success = EverythingDll.INSTANCE.Everything_QueryW(true);
             if (!success) {
                 int errorCode = EverythingDll.INSTANCE.Everything_GetLastError();
-                throw new RuntimeException("搜索失败，错误代码: " + errorCode);
+                SwingUtil.showError("Everything 搜索失败，错误代码: " + errorCode);
+                return results;
             }
 
             // 获取结果数量
@@ -254,6 +265,9 @@ public class EverythingUtil {
      * 检查Everything是否正在运行
      */
     public boolean isEverythingRunning() {
+        if (!loaded) {
+            return false;
+        }
         try {
             EverythingDll.INSTANCE.Everything_GetLastError();
             return true;
@@ -300,7 +314,7 @@ public class EverythingUtil {
         try {
             new ProcessBuilder(everythingPath, "-search", query).start();
         } catch (Exception e) {
-            e.printStackTrace();
+            SwingUtil.showError("启动 Everything 失败：" + e.getMessage());
         }
     }
 }

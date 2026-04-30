@@ -81,17 +81,17 @@ public final class ConfigUtil {
                 try {
                     Files.createDirectories(parent);
                 } catch (IOException e) {
-                    System.err.println("创建配置目录失败: " + e.getMessage());
+                    SwingUtil.showError("创建配置目录失败: " + e.getMessage());
                 }
             }
         } else if (Files.isReadable(file)) {
             try (InputStreamReader isr = new InputStreamReader(new FileInputStream(file.toFile()), StandardCharsets.UTF_8)) {
                 properties.load(isr);
             } catch (IOException e) {
-                System.err.println("加载配置失败: " + e.getMessage());
+                SwingUtil.showError("加载配置失败: " + e.getMessage());
             }
         } else {
-            System.err.println("配置文件不可读: " + file.toAbsolutePath());
+            SwingUtil.showError("配置文件不可读: " + file.toAbsolutePath());
         }
 
         setConfig();
@@ -213,7 +213,7 @@ public final class ConfigUtil {
             try {
                 Files.createDirectories(parent);
             } catch (IOException e) {
-                System.err.println("创建配置目录失败: " + e.getMessage());
+                SwingUtil.showError("创建配置目录失败: " + e.getMessage());
                 return;
             }
         }
@@ -253,7 +253,7 @@ public final class ConfigUtil {
             writer.write(Config.KEY_TAGS + "=" + String.join(Config.DELIMITER, Config.tags));
             writer.newLine();
         } catch (IOException e) {
-            System.err.println("保存配置失败: " + e.getMessage());
+            SwingUtil.showError("保存配置失败: " + e.getMessage());
         }
     }
 

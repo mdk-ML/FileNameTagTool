@@ -35,7 +35,7 @@ public final class FileNameTagTool {
 
         final Parsed parsed = Parsed.parseArgs(args);
         if (parsed.action == null) {
-            SwingUtil.showMessage("缺少动作参数，请用：add | removeAll | newVersion | copyWithoutTags。", "提示");
+            SwingUtil.showMessage("缺少动作参数，请用：add | removeAll | newVersion | copyWithoutTags。");
             return;
         }
 
@@ -51,7 +51,7 @@ public final class FileNameTagTool {
                 .toList();
 
         if (existing.isEmpty()) {
-            SwingUtil.showMessage("没有获取到有效的文件/文件夹路径。", "提示");
+            SwingUtil.showMessage("没有获取到有效的文件/文件夹路径。");
             return;
         }
 
@@ -117,9 +117,9 @@ public final class FileNameTagTool {
                 }
             }
 
-            SwingUtil.showMessage("选择项：" + existing.size() + "\n成功重命名：" + renamed + "\n跳过/失败：" + skipped, "完成");
+            SwingUtil.showSuccess("选择项：" + existing.size() + "\n成功重命名：" + renamed + "\n跳过/失败：" + skipped);
         } catch (Exception e) {
-            SwingUtil.showMessage(String.valueOf(e), "错误");
+            SwingUtil.showError(String.valueOf(e));
         }
     }
 
