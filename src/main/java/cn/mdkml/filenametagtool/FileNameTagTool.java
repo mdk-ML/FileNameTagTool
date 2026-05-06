@@ -5,7 +5,6 @@ import cn.mdkml.filenametagtool.model.Parsed;
 import cn.mdkml.filenametagtool.util.ConfigUtil;
 import cn.mdkml.filenametagtool.util.FileUtil;
 import cn.mdkml.filenametagtool.util.SwingUtil;
-import cn.mdkml.filenametagtool.util.TagUtil;
 
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -13,7 +12,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  * 文件名标签工具主类。
@@ -61,46 +59,27 @@ public final class FileNameTagTool {
             return;
         }
 
-        final List<String> addTags;
-        final Set<String> removeTags;
-        if (action == Action.ADD) {
-            // 弹窗让用户输入要添加的标签
-            final Object[] result = SwingUtil.askTagsWithHistory();
-            if (result == null) {
+        // 添加/移除标签模式：打开标签管理窗口，自动切换到对应标签页并选中文件
+        if (action == Action.ADD || action == Action.REMOVE) {
+            Path firstFile = existing.get(0);
+            Path dir = firstFile.getParent();
+            if (dir == null) {
+                SwingUtil.showError("无法获取文件所在目录");
                 return;
             }
-            final List<String> tags = (List<String>) result[0];
-            final Set<String> smartTags = (Set<String>) result[1];
-            final List<String> normalized = TagUtil.normalizeTags(tags);
-            if (normalized.isEmpty()) {
-                return;
-            }
-            TagUtil.rememberTags(normalized, smartTags);
-            addTags = normalized;
-            removeTags = null;
-        } else if (action == Action.REMOVE) {
-            // 弹窗让用户选择要移除的标签
-            removeTags = SwingUtil.askTagsToRemove(existing);
-            if (removeTags == null) {
-                return;
-            }
-            addTags = null;
-        } else {
-            addTags = null;
-            removeTags = null;
+            int tab = action == Action.ADD ? 1 : 2; // 1=添加标签, 2=移除标签
+            SwingUtil.createTagManagerWindow(dir.toString(), tab, existing);
+            return;
         }
 
+        // NEW_VERSION / COPY_WITHOUT_TAGS / REMOVE_ALL
         try {
             int renamed = 0;
             int skipped = 0;
             for (Path path : existing) {
                 try {
                     boolean success;
-                    if (action == Action.ADD) {
-                        success = FileUtil.addTags(path, addTags);
-                    } else if (action == Action.REMOVE) {
-                        success = FileUtil.removeTags(path, removeTags);
-                    } else if (action == Action.NEW_VERSION) {
+                    if (action == Action.NEW_VERSION) {
                         success = FileUtil.createNewVersion(path);
                     } else if (action == Action.COPY_WITHOUT_TAGS) {
                         success = FileUtil.copyWithoutTags(path);

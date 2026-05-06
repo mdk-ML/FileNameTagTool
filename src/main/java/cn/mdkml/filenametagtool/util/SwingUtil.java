@@ -610,6 +610,17 @@ public final class SwingUtil {
      * @param path 目录路径
      */
     public static void createTagManagerWindow(String path) {
+        createTagManagerWindow(path, -1, null);
+    }
+
+    /**
+     * 创建标签管理窗口。
+     *
+     * @param path          目录路径
+     * @param initialTab    初始选中的标签页索引（-1 使用默认）
+     * @param filesToSelect 要自动选中的文件路径列表（null 表示不自动选中）
+     */
+    public static void createTagManagerWindow(String path, int initialTab, List<Path> filesToSelect) {
         ConfigUtil.reload();
 
         // 1. 空值检查
@@ -699,9 +710,14 @@ public final class SwingUtil {
         refreshSettings[0] = () -> finalTabbedPane.setComponentAt(3, createSettingsTab(finalPath, refreshSettings[0]));
 
         tabbedPane.addTab("搜索", null, createSearchTab(path, refreshSearch[0]));
-        tabbedPane.addTab("添加标签", null, createAddTagTab(path, refreshAddTag[0]));
-        tabbedPane.addTab("移除标签", null, createRemoveTagTab(path, refreshRemoveTag[0]));
+        tabbedPane.addTab("添加标签", null, createAddTagTab(path, refreshAddTag[0], filesToSelect));
+        tabbedPane.addTab("移除标签", null, createRemoveTagTab(path, refreshRemoveTag[0], filesToSelect));
         tabbedPane.addTab("设置", null, createSettingsTab(path, refreshSettings[0]));
+
+        // 设置初始标签页
+        if (initialTab >= 0 && initialTab < tabbedPane.getTabCount()) {
+            tabbedPane.setSelectedIndex(initialTab);
+        }
 
         // 切换标签时刷新对应面板内容
         tabbedPane.addChangeListener(e -> {
@@ -874,11 +890,23 @@ public final class SwingUtil {
      * 支持双击历史标签直接为选中文件添加标签，也支持多选历史标签后点击按钮批量添加。
      * </p>
      *
-     * @param path         目录路径
+     * @param path          目录路径
      * @param refreshAction 刷新回调
      * @return 添加标签面板
      */
     private static JPanel createAddTagTab(String path, Runnable refreshAction) {
+        return createAddTagTab(path, refreshAction, null);
+    }
+
+    /**
+     * 创建添加标签面板。
+     *
+     * @param path          目录路径
+     * @param refreshAction 刷新回调
+     * @param filesToSelect 要自动选中的文件路径列表（null 表示不自动选中）
+     * @return 添加标签面板
+     */
+    private static JPanel createAddTagTab(String path, Runnable refreshAction, List<Path> filesToSelect) {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
         panel.setBackground(BG_CONTENT);
@@ -1017,6 +1045,22 @@ public final class SwingUtil {
             }
         }
         enableRangeSelection(fileButtons);
+
+        // 自动选中指定的文件
+        if (filesToSelect != null && !filesToSelect.isEmpty()) {
+            Set<String> selectNames = new HashSet<>();
+            for (Path p : filesToSelect) {
+                Path fn = p.getFileName();
+                if (fn != null) selectNames.add(fn.toString());
+            }
+            for (int i = 0; i < fileButtons.size(); i++) {
+          
+                File f = files[i];
+                if (f.isFile() && selectNames.contains(f.getName())) {
+                    fileButtons.get(i).setSelected(true);
+                }
+            }
+        }
 
         JScrollPane filesScroll = new JScrollPane(filesPanel);
         filesScroll.setBackground(BG_CONTENT);
@@ -1227,6 +1271,10 @@ public final class SwingUtil {
      * @return 移除标签面板
      */
     private static JPanel createRemoveTagTab(String path, Runnable refreshAction) {
+        return createRemoveTagTab(path, refreshAction, null);
+    }
+
+    private static JPanel createRemoveTagTab(String path, Runnable refreshAction, List<Path> filesToSelect) {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
         panel.setBackground(BG_CONTENT);
@@ -1319,6 +1367,21 @@ public final class SwingUtil {
             filesPanel.add(Box.createVerticalStrut(5));
         }
         enableRangeSelection(fileButtons);
+
+        // 自动选中指定的文件
+        if (filesToSelect != null && !filesToSelect.isEmpty()) {
+            Set<String> selectNames = new HashSet<>();
+            for (Path p : filesToSelect) {
+                Path fn = p.getFileName();
+                if (fn != null) selectNames.add(fn.toString());
+            }
+            for (int i = 0; i < fileButtons.size(); i++) {
+                File f = taggedFiles.get(i);
+                if (selectNames.contains(f.getName())) {
+                    fileButtons.get(i).setSelected(true);
+                }
+            }
+        }
 
         JScrollPane filesScroll = new JScrollPane(filesPanel);
         filesScroll.setBackground(BG_CONTENT);
