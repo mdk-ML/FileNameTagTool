@@ -22,6 +22,9 @@ import java.util.regex.Pattern;
 
 public final class SwingUtil {
 
+    /** 当前显示的通知弹窗，用于确保同一时间只显示一个 */
+    private static volatile JDialog currentNotification;
+
     private static final Color GRADIENT_START = new Color(74, 144, 226);
     private static final Color BG_LIGHT = new Color(248, 249, 250);
     private static final Color BG_WHITE = Color.WHITE;
@@ -86,7 +89,14 @@ public final class SwingUtil {
     private static void showNotification(String msg, String title, MessageType type) {
         boolean isError = type == MessageType.ERROR;
 
+        // 关闭之前的通知弹窗
+        if (currentNotification != null) {
+            currentNotification.dispose();
+            currentNotification = null;
+        }
+
         JDialog dialog = new JDialog((Frame) null, title, false);
+        currentNotification = dialog;
         dialog.setAlwaysOnTop(true);
         dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         dialog.setResizable(false);
@@ -152,6 +162,16 @@ public final class SwingUtil {
         dialog.getContentPane().add(mainPanel);
         dialog.pack();
         dialog.setLocationRelativeTo(null);
+
+        // 弹窗关闭时清除引用
+        dialog.addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosed(java.awt.event.WindowEvent e) {
+                if (currentNotification == dialog) {
+                    currentNotification = null;
+                }
+            }
+        });
 
         Dimension size = dialog.getSize();
         int maxWidth = 400;
