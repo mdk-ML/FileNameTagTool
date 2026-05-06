@@ -74,7 +74,7 @@ public final class SwingUtil {
     }
 
     /** 弹窗类型枚举 */
-    private enum MessageType { INFO, SUCCESS, ERROR }
+    private enum MessageType {INFO, SUCCESS, ERROR}
 
     /**
      * 通知弹窗内部实现。
@@ -906,6 +906,7 @@ public final class SwingUtil {
             tagsPanel.add(tagButton);
             tagsPanel.add(Box.createVerticalStrut(5));
         }
+        enableRangeSelection(historyTagButtons);
 
         JScrollPane tagsScroll = new JScrollPane(tagsPanel, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         tagsScroll.setBackground(BG_CONTENT);
@@ -919,11 +920,11 @@ public final class SwingUtil {
         filesPanel.setLayout(new BoxLayout(filesPanel, BoxLayout.Y_AXIS));
         filesPanel.setBackground(BG_CONTENT);
 
+        final List<JToggleButton> fileButtons = new ArrayList<>();
         if (files != null) {
             for (File file : files) {
                 if (file.isFile()) {
                     final File currentFile = file;
-                    // 使用 HTML 实现文字左对齐
                     JToggleButton fileButton = new JToggleButton("<html><div style='text-align:left;width:100%;'>" + file.getName() + "</div></html>");
                     fileButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
                     fileButton.setFocusPainted(false);
@@ -940,11 +941,13 @@ public final class SwingUtil {
                         }
                     });
 
+                    fileButtons.add(fileButton);
                     filesPanel.add(fileButton);
                     filesPanel.add(Box.createVerticalStrut(5));
                 }
             }
         }
+        enableRangeSelection(fileButtons);
 
         JScrollPane filesScroll = new JScrollPane(filesPanel);
         filesScroll.setBackground(BG_CONTENT);
@@ -954,9 +957,7 @@ public final class SwingUtil {
         String placeholderText = "输入自定义标签，多个标签请用空格分隔，例如：紧急任务 Q2季度报告 客户反馈";
         JTextArea input = new JTextArea();
         input.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 14));
-        input.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(BORDER_GRAY, 1, true),
-                BorderFactory.createEmptyBorder(12, 12, 12, 12)));
+        input.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(BORDER_GRAY, 1, true), BorderFactory.createEmptyBorder(12, 12, 12, 12)));
         input.setLineWrap(true);
         input.setWrapStyleWord(true);
         input.setText(placeholderText);
@@ -1070,8 +1071,7 @@ public final class SwingUtil {
         input.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent event) {
-                if (event.getKeyCode() == java.awt.event.KeyEvent.VK_ENTER
-                        && !event.isControlDown() && !event.isShiftDown()) {
+                if (event.getKeyCode() == java.awt.event.KeyEvent.VK_ENTER && !event.isControlDown() && !event.isShiftDown()) {
                     event.consume();
                     addButton.doClick();
                 }
@@ -1100,8 +1100,7 @@ public final class SwingUtil {
      * @param tags          要添加的标签列表
      * @param refreshAction 刷新回调
      */
-    private static void applyTagToSelectedFiles(String path, List<File> selectedFiles,
-                                                List<String> tags, Runnable refreshAction) {
+    private static void applyTagToSelectedFiles(String path, List<File> selectedFiles, List<String> tags, Runnable refreshAction) {
         // 先记录新标签到配置，确保 Config.tags 已更新
         TagUtil.rememberTags(tags, new HashSet<>());
 
@@ -1194,6 +1193,7 @@ public final class SwingUtil {
             tagsPanel.add(tagButton);
             tagsPanel.add(Box.createVerticalStrut(5));
         }
+        enableRangeSelection(tagButtons);
 
         JScrollPane tagsScroll = new JScrollPane(tagsPanel, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         tagsScroll.setBackground(BG_CONTENT);
@@ -1204,6 +1204,7 @@ public final class SwingUtil {
         filesPanel.setLayout(new BoxLayout(filesPanel, BoxLayout.Y_AXIS));
         filesPanel.setBackground(BG_CONTENT);
 
+        final List<JToggleButton> fileButtons = new ArrayList<>();
         for (File file : taggedFiles) {
             final File currentFile = file;
             JToggleButton fileButton = new JToggleButton("<html><div style='text-align:left;width:100%;'>" + file.getName() + "</div></html>");
@@ -1222,9 +1223,11 @@ public final class SwingUtil {
                 }
             });
 
+            fileButtons.add(fileButton);
             filesPanel.add(fileButton);
             filesPanel.add(Box.createVerticalStrut(5));
         }
+        enableRangeSelection(fileButtons);
 
         JScrollPane filesScroll = new JScrollPane(filesPanel);
         filesScroll.setBackground(BG_CONTENT);
@@ -1488,14 +1491,10 @@ public final class SwingUtil {
         private static final Color SPECIAL_FG = new Color(180, 130, 0);
 
         @Override
-        public Component getListCellRendererComponent(JList<?> list, Object value,
-                                                      int index, boolean isSelected,
-                                                      boolean cellHasFocus) {
+        public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
             JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
             label.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
-            label.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_GRAY),
-                    BorderFactory.createEmptyBorder(8, 12, 8, 12)));
+            label.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_GRAY), BorderFactory.createEmptyBorder(8, 12, 8, 12)));
 
             String text = value != null ? value.toString() : "";
             boolean isSpecial = FileUtil.TAG_ORDER_FILENAME.equals(text) || FileUtil.TAG_ORDER_VERSION.equals(text);
@@ -1602,8 +1601,7 @@ public final class SwingUtil {
      * @param tagsToRemove  要移除的标签集合
      * @param refreshAction 刷新回调
      */
-    private static void performRemove(String path, List<File> selectedFiles,
-                                      Set<String> tagsToRemove, Runnable refreshAction) {
+    private static void performRemove(String path, List<File> selectedFiles, Set<String> tagsToRemove, Runnable refreshAction) {
         if (tagsToRemove.isEmpty()) {
             showMessage("请先选择要移除的标签");
             return;
@@ -1721,6 +1719,39 @@ public final class SwingUtil {
         if (s.isEmpty()) return new ArrayList<>();
         String[] parts = s.split("\\s+");
         return new ArrayList<>(java.util.Arrays.asList(parts));
+    }
+
+    /**
+     * 为 JToggleButton 列表启用 Shift+点击范围选择。
+     * 普通点击记录锚点，Shift+点击选中锚点到当前按钮之间的所有按钮。
+     *
+     * @param buttons 按钮列表
+     */
+    private static void enableRangeSelection(List<JToggleButton> buttons) {
+        final int[] anchorIndex = {-1};
+        for (int i = 0; i < buttons.size(); i++) {
+            final int currentIndex = i;
+            final JToggleButton button = buttons.get(i);
+            button.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseClicked(MouseEvent event) {
+                    if (event.isShiftDown() && anchorIndex[0] >= 0) {
+                        // Shift+点击：选中锚点到当前之间的所有按钮
+                        int start = Math.min(anchorIndex[0], currentIndex);
+                        int end = Math.max(anchorIndex[0], currentIndex);
+                        for (JToggleButton toggleButton : buttons) {
+                            toggleButton.setSelected(false);
+                        }
+                        for (int j = start; j <= end; j++) {
+                            buttons.get(j).setSelected(true);
+                        }
+                    } else {
+                        // 普通点击：更新锚点
+                        anchorIndex[0] = currentIndex;
+                    }
+                }
+            });
+        }
     }
 
     /**
