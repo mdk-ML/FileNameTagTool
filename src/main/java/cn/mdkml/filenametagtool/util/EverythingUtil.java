@@ -7,6 +7,7 @@ import com.sun.jna.platform.win32.WinBase;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -112,14 +113,20 @@ public class EverythingUtil {
         @Override
         public String toString() {
             return (isDirectory ? "[文件夹] " : "[文件] ") + fullPath +
-                    " (大小: " + formatSize(size) + ", 修改时间: " + new java.util.Date(lastModified) + ")";
+                    " (大小: " + formatSize(size) + ", 修改时间: " + new Date(lastModified) + ")";
         }
 
         // 格式化文件大小
         private String formatSize(long size) {
-            if (size < 1024) return size + " B";
-            if (size < 1024 * 1024) return String.format("%.2f KB", size / 1024.0);
-            if (size < 1024 * 1024 * 1024) return String.format("%.2f MB", size / (1024.0 * 1024));
+            if (size < 1024) {
+                return size + " B";
+            }
+            if (size < 1024 * 1024) {
+                return String.format("%.2f KB", size / 1024.0);
+            }
+            if (size < 1024 * 1024 * 1024) {
+                return String.format("%.2f MB", size / (1024.0 * 1024));
+            }
             return String.format("%.2f GB", size / (1024.0 * 1024 * 1024));
         }
     }
@@ -148,11 +155,12 @@ public class EverythingUtil {
 
     /**
      * 基础搜索方法
-     * @param query 搜索关键词（支持Everything原生语法）
-     * @param matchCase 是否区分大小写
+     *
+     * @param query          搜索关键词（支持Everything原生语法）
+     * @param matchCase      是否区分大小写
      * @param matchWholeWord 是否匹配整个单词
-     * @param matchPath 是否匹配路径
-     * @param useRegex 是否使用正则表达式
+     * @param matchPath      是否匹配路径
+     * @param useRegex       是否使用正则表达式
      * @return 搜索结果列表
      */
     public List<SearchResult> search(String query,
@@ -222,8 +230,9 @@ public class EverythingUtil {
 
     /**
      * 带路径的搜索
+     *
      * @param query 搜索关键词（支持Everything原生语法）
-     * @param path 搜索路径（如 "C:\projects"）
+     * @param path  搜索路径（如 "C:\projects"）
      */
     public List<SearchResult> search(String query, String path) {
         String fullQuery = (path != null ? path + " " : "") + query;
@@ -232,8 +241,9 @@ public class EverythingUtil {
 
     /**
      * 搜索指定类型的文件
+     *
      * @param extension 文件扩展名（如 "java", "pdf", "txt"）
-     * @param path 搜索路径（如 "C:\projects"）
+     * @param path      搜索路径（如 "C:\projects"）
      */
     public List<SearchResult> searchByExtension(String extension, String path) {
         String query = (path != null ? path + " " : "") + "*" + extension;
@@ -290,12 +300,12 @@ public class EverythingUtil {
         for (SearchResult result : results0) {
             System.out.println(result);
         }
-        
+
         List<SearchResult> results1 = searcher.search("【 】", "C:\\Users\\MU\\Desktop\\【测试】FileNameTagTool");
         for (SearchResult result : results1) {
             System.out.println(result);
             System.out.println("======");
-            System.out.println(result.fileName);
+            System.out.println(result.getFileName());
         }
         System.out.println("\n=== 测试2：搜索指定路径下的 PDF 文件 ===");
         List<SearchResult> results2 = searcher.searchByExtension("pdf", "C:\\Users\\Public\\Documents");

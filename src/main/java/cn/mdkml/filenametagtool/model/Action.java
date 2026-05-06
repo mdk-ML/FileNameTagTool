@@ -28,13 +28,18 @@ public enum Action {
 
     /**
      * 根据命令行参数名称查找对应的动作枚举值
+     *
      * @param s 命令行参数字符串
      * @return 对应的动作枚举值，未匹配则返回null
      */
     public static Action fromArg(String s) {
-        if (s == null) return null;
+        if (s == null) {
+            return null;
+        }
         for (Action a : values()) {
-            if (a.arg.equalsIgnoreCase(s.trim())) return a;
+            if (a.arg.equalsIgnoreCase(s.trim())) {
+                return a;
+            }
         }
         return null;
     }

@@ -67,7 +67,6 @@ public final class TagUtil {
         // 找到 {文件名} 的位置，将新标签插入到它后面
         int insertIndex = old.indexOf(FileUtil.TAG_ORDER_FILENAME);
         if (insertIndex < 0) {
-            // 没有 {文件名} 占位符，追加到末尾
             insertIndex = old.size();
         } else {
             insertIndex += 1;
@@ -85,14 +84,22 @@ public final class TagUtil {
      * @return 标准化后的标签列表
      */
     public static List<String> normalizeTags(List<String> tags) {
-        if (tags == null) return List.of();
+        if (tags == null) {
+            return List.of();
+        }
         LinkedHashSet<String> out = new LinkedHashSet<>();
         for (String t : tags) {
-            if (t == null) continue;
+            if (t == null) {
+                continue;
+            }
             String v = t.trim();
-            if (v.isEmpty()) continue;
+            if (v.isEmpty()) {
+                continue;
+            }
             v = v.replace("【", "").replace("】", "").trim();
-            if (v.isEmpty()) continue;
+            if (v.isEmpty()) {
+                continue;
+            }
             out.add(v);
         }
         return new ArrayList<>(out);

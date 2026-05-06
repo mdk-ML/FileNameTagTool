@@ -397,16 +397,6 @@ public final class FileUtil {
     }
 
     /**
-     * 移除基础名中的所有标签
-     *
-     * @param name 基础名
-     * @return 新的基础名
-     */
-    private static String removeLeadingTags(String name) {
-        return ALL_TAGS_PATTERN.matcher(name).replaceAll("");
-    }
-
-    /**
      * 解析文件名中所有位置的标签（不限于前导位置）。
      * 凡是被【】包裹的内容都视为标签。
      *

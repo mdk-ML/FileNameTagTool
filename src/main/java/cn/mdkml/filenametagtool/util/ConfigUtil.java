@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
-
 /**
  * 静态配置工具类，支持直接通过类名调用，无需实例化
  *
@@ -52,6 +51,7 @@ public final class ConfigUtil {
 
     /**
      * 初始化配置（指定路径）
+     *
      * @param configPath 配置文件路径
      */
     public static void init(String configPath) {
@@ -120,13 +120,16 @@ public final class ConfigUtil {
 
     /**
      * 获取整型配置值
-     * @param key 配置键名
+     *
+     * @param key          配置键名
      * @param defaultValue 默认值
      * @return 配置值或默认值
      */
     public static int getInt(String key, int defaultValue) {
         String value = properties.getProperty(key);
-        if (value == null) return defaultValue;
+        if (value == null) {
+            return defaultValue;
+        }
         try {
             return Integer.parseInt(value.trim());
         } catch (NumberFormatException e) {
@@ -134,10 +137,10 @@ public final class ConfigUtil {
         }
     }
 
-
     /**
      * 获取列表型配置值
-     * @param key 配置键名
+     *
+     * @param key       配置键名
      * @param delimiter 分隔符
      * @return 配置值列表
      */
@@ -157,7 +160,8 @@ public final class ConfigUtil {
 
     /**
      * 设置字符串配置值
-     * @param key 配置键名
+     *
+     * @param key   配置键名
      * @param value 配置值
      */
     public static void set(String key, String value) {
@@ -170,18 +174,19 @@ public final class ConfigUtil {
 
     /**
      * 设置整型配置值
-     * @param key 配置键名
+     *
+     * @param key   配置键名
      * @param value 配置值
      */
     public static void set(String key, int value) {
         set(key, String.valueOf(value));
     }
 
-
     /**
      * 设置列表型配置值
-     * @param key 配置键名
-     * @param values 配置值列表
+     *
+     * @param key       配置键名
+     * @param values    配置值列表
      * @param delimiter 分隔符
      */
     public static void set(String key, List<String> values, String delimiter) {
@@ -191,7 +196,9 @@ public final class ConfigUtil {
         }
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < values.size(); i++) {
-            if (i > 0) sb.append(delimiter);
+            if (i > 0) {
+                sb.append(delimiter);
+            }
             sb.append(values.get(i));
         }
         set(key, sb.toString());
@@ -289,6 +296,4 @@ public final class ConfigUtil {
         set(Config.KEY_ADD_TAG_VERTICAL_DIVIDER, Config.addTagVerticalDivider);
         set(Config.KEY_ADD_TAG_SMART_HISTORY_DIVIDER, Config.addTagSmartHistoryDivider);
     }
-
-
 }
