@@ -116,6 +116,7 @@ public final class ConfigUtil {
         Config.addTagHorizontalDivider = getInt(Config.KEY_ADD_TAG_HORIZONTAL_DIVIDER, Config.addTagHorizontalDivider);
         Config.addTagVerticalDivider = getInt(Config.KEY_ADD_TAG_VERTICAL_DIVIDER, Config.addTagVerticalDivider);
         Config.addTagSmartHistoryDivider = getInt(Config.KEY_ADD_TAG_SMART_HISTORY_DIVIDER, Config.addTagSmartHistoryDivider);
+        Config.tagBracketStyle = properties.getProperty(Config.KEY_TAG_BRACKET_STYLE, Config.tagBracketStyle);
     }
 
     /**
@@ -257,6 +258,9 @@ public final class ConfigUtil {
             writePropertyLine(writer, "# 添加标签页-智能标签与历史标签分隔线位置", Config.KEY_ADD_TAG_SMART_HISTORY_DIVIDER, String.valueOf(Config.addTagSmartHistoryDivider));
             writer.newLine();
 
+            writePropertyLine(writer, "# 标签包裹符号样式（fullwidth=全角【】 bracket=半角[]）", Config.KEY_TAG_BRACKET_STYLE, Config.tagBracketStyle);
+            writer.newLine();
+
             writer.write("# 标签列表（多个标签用逗号分隔）");
             writer.newLine();
             writer.write(Config.KEY_TAGS + "=" + String.join(Config.DELIMITER, Config.tags));
@@ -295,5 +299,6 @@ public final class ConfigUtil {
         set(Config.KEY_ADD_TAG_HORIZONTAL_DIVIDER, Config.addTagHorizontalDivider);
         set(Config.KEY_ADD_TAG_VERTICAL_DIVIDER, Config.addTagVerticalDivider);
         set(Config.KEY_ADD_TAG_SMART_HISTORY_DIVIDER, Config.addTagSmartHistoryDivider);
+        set(Config.KEY_TAG_BRACKET_STYLE, Config.tagBracketStyle);
     }
 }

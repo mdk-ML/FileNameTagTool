@@ -370,10 +370,12 @@ public final class SwingUtil {
             return panel;
         }
 
-        List<EverythingUtil.SearchResult> results = searcher.search("【 】", path);
+        String wrapL = Config.getTagWrapLeft();
+        String wrapR = Config.getTagWrapRight();
+        List<EverythingUtil.SearchResult> results = searcher.search(wrapL + " " + wrapR, path);
 
         Map<String, Integer> tagCount = new LinkedHashMap<>();
-        Pattern pattern = Pattern.compile("【([^】]+)】");
+        Pattern pattern = Pattern.compile(Pattern.quote(wrapL) + "([^" + Pattern.quote(wrapR) + "]+)" + Pattern.quote(wrapR));
         for (EverythingUtil.SearchResult result : results) {
             String fileName = result.getFileName();
             Matcher matcher = pattern.matcher(fileName);
@@ -421,7 +423,7 @@ public final class SwingUtil {
                                     btn.setSelected(false);
                                 }
                             }
-                            String searchQuery = path + " 【" + tag + "】";
+                            String searchQuery = path + " " + Config.getTagWrapLeft() + tag + Config.getTagWrapRight();
                             EverythingUtil.launchEverythingUI(searchQuery, Config.everythingPath);
                         }
                     }
@@ -456,7 +458,7 @@ public final class SwingUtil {
             if (!selectedTags.isEmpty()) {
                 StringBuilder queryBuilder = new StringBuilder(path);
                 for (String tag : selectedTags) {
-                    queryBuilder.append(" 【").append(tag).append("】");
+                    queryBuilder.append(" ").append(Config.getTagWrapLeft()).append(tag).append(Config.getTagWrapRight());
                 }
                 EverythingUtil.launchEverythingUI(queryBuilder.toString(), Config.everythingPath);
             }
@@ -1073,6 +1075,54 @@ public final class SwingUtil {
         pathField.setPreferredSize(new Dimension(400, 32));
         pathPanel.add(pathField, BorderLayout.CENTER);
 
+        // ==================== 标签包裹符号配置 ====================
+        JPanel bracketPanel = new JPanel(new BorderLayout(8, 0));
+        bracketPanel.setBackground(BG_CONTENT);
+        bracketPanel.setBorder(BorderFactory.createTitledBorder("标签包裹符号"));
+
+        JRadioButton fullwidthRadio = new JRadioButton("【】 全角方括号");
+        fullwidthRadio.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        fullwidthRadio.setBackground(BG_CONTENT);
+        fullwidthRadio.setFocusPainted(false);
+
+        JRadioButton bracketRadio = new JRadioButton("[] 半角方括号");
+        bracketRadio.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        bracketRadio.setBackground(BG_CONTENT);
+        bracketRadio.setFocusPainted(false);
+
+        ButtonGroup bracketGroup = new ButtonGroup();
+        bracketGroup.add(fullwidthRadio);
+        bracketGroup.add(bracketRadio);
+
+        if (Config.STYLE_BRACKET.equals(Config.tagBracketStyle)) {
+            bracketRadio.setSelected(true);
+        } else {
+            fullwidthRadio.setSelected(true);
+        }
+
+        JLabel previewLabel = new JLabel();
+        previewLabel.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        previewLabel.setForeground(TEXT_DARK);
+
+        Runnable updatePreview = () -> {
+            String l = fullwidthRadio.isSelected() ? "【" : "[";
+            String r = fullwidthRadio.isSelected() ? "】" : "]";
+            previewLabel.setText("示例: " + l + "标签名" + r);
+        };
+        updatePreview.run();
+
+        fullwidthRadio.addActionListener(e -> updatePreview.run());
+        bracketRadio.addActionListener(e -> updatePreview.run());
+
+        JPanel radioPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        radioPanel.setBackground(BG_CONTENT);
+        radioPanel.add(fullwidthRadio);
+        radioPanel.add(bracketRadio);
+        radioPanel.add(Box.createHorizontalStrut(20));
+        radioPanel.add(previewLabel);
+
+        bracketPanel.add(radioPanel, BorderLayout.CENTER);
+
         // ==================== 中部：标签排序 ====================
         JPanel tagsContainer = new JPanel(new BorderLayout());
         tagsContainer.setBackground(BG_CONTENT);
@@ -1120,12 +1170,15 @@ public final class SwingUtil {
         tagsScroll.setBackground(BG_CONTENT);
         tagsContainer.add(tagsScroll, BorderLayout.CENTER);
 
-        // 上下布局：路径 + 标签排序
+        // 上下布局：路径 + 包裹符号 + 标签排序
         JPanel centerPanel = new JPanel();
         centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
         centerPanel.setBackground(BG_CONTENT);
         pathPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, pathPanel.getPreferredSize().height + 10));
+        bracketPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, bracketPanel.getPreferredSize().height + 10));
         centerPanel.add(pathPanel);
+        centerPanel.add(Box.createVerticalStrut(10));
+        centerPanel.add(bracketPanel);
         centerPanel.add(Box.createVerticalStrut(10));
         centerPanel.add(tagsContainer);
 
@@ -1142,24 +1195,26 @@ public final class SwingUtil {
         saveButton.setFocusPainted(false);
         saveButton.addActionListener(e -> {
             Config.everythingPath = pathField.getText().trim();
+            Config.tagBracketStyle = bracketRadio.isSelected() ? Config.STYLE_BRACKET : Config.STYLE_FULLWIDTH;
             Config.tags = Collections.list(tagListModel.elements());
             ConfigUtil.save();
             showSuccess("配置已保存");
         });
 
-        JButton reorderButton = new JButton("重排此目录标签顺序");
-        reorderButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
-        reorderButton.setPreferredSize(new Dimension(reorderButton.getPreferredSize().width + 20, 36));
-        reorderButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        reorderButton.setFocusPainted(false);
-        reorderButton.addActionListener(e -> {
+        JButton applyButton = new JButton("应用到目录文件");
+        applyButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        applyButton.setPreferredSize(new Dimension(applyButton.getPreferredSize().width + 20, 36));
+        applyButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        applyButton.setFocusPainted(false);
+        applyButton.addActionListener(e -> {
             Config.everythingPath = pathField.getText().trim();
+            Config.tagBracketStyle = bracketRadio.isSelected() ? Config.STYLE_BRACKET : Config.STYLE_FULLWIDTH;
             Config.tags = Collections.list(tagListModel.elements());
             ConfigUtil.save();
-            reorderDirectoryTags(path);
+            applyTagSettingsToDirectory(path);
         });
 
-        JButton rescanButton = new JButton("重新扫描历史标签");
+        JButton rescanButton = new JButton("扫描目录标签");
         rescanButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
         rescanButton.setPreferredSize(new Dimension(rescanButton.getPreferredSize().width + 20, 36));
         rescanButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
@@ -1193,6 +1248,7 @@ public final class SwingUtil {
             }
 
             Config.everythingPath = pathField.getText().trim();
+            Config.tagBracketStyle = bracketRadio.isSelected() ? Config.STYLE_BRACKET : Config.STYLE_FULLWIDTH;
             Config.tags = Collections.list(tagListModel.elements());
             ConfigUtil.save();
             showSuccess("已扫描到 " + scannedTags.size() + " 个标签");
@@ -1200,18 +1256,18 @@ public final class SwingUtil {
 
         buttonPanel.add(saveButton);
         buttonPanel.add(rescanButton);
-        buttonPanel.add(reorderButton);
+        buttonPanel.add(applyButton);
         panel.add(buttonPanel, BorderLayout.SOUTH);
 
         return panel;
     }
 
     /**
-     * 按照 Config.tags 的全局顺序重排目录中所有文件的标签顺序。
+     * 将当前标签设置（顺序和包裹符号）应用到目录中所有文件。
      *
      * @param dirPath 目录路径
      */
-    private static void reorderDirectoryTags(String dirPath) {
+    private static void applyTagSettingsToDirectory(String dirPath) {
         File currentDir = new File(dirPath);
         File[] files = currentDir.listFiles();
         if (files == null) {
@@ -1223,7 +1279,7 @@ public final class SwingUtil {
         for (File file : files) {
             if (file.isFile()) {
                 try {
-                    if (FileUtil.reorderTags(file.toPath())) {
+                    if (FileUtil.applyTagSettings(file.toPath())) {
                         reordered++;
                     }
                 } catch (Exception e) {
@@ -1231,7 +1287,8 @@ public final class SwingUtil {
                 }
             }
         }
-        showSuccess("已重排 " + reordered + " 个文件的标签顺序");
+        showSuccess("已重排 " + reordered + " 个文件的标签顺序（包裹符号已统一为" +
+                (Config.STYLE_BRACKET.equals(Config.tagBracketStyle) ? "[]" : "【】") + "）");
     }
 
     /**

@@ -25,7 +25,12 @@ public class Config {
     public static final String KEY_ADD_TAG_VERTICAL_DIVIDER = "addTagTab.verticalDivider";
     /** 添加标签页-智能标签与历史标签分隔线位置 */
     public static final String KEY_ADD_TAG_SMART_HISTORY_DIVIDER = "addTagTab.smartHistoryDivider";
-
+    /** 标签包裹符号样式 */
+    public static final String KEY_TAG_BRACKET_STYLE = "tag.bracket.style";
+    /** 全角方括号样式 【】 */
+    public static final String STYLE_FULLWIDTH = "fullwidth";
+    /** 半角方括号样式 [] */
+    public static final String STYLE_BRACKET = "bracket";
 
     public static int windowX = 0;
     public static int windowY = 0;
@@ -45,5 +50,25 @@ public class Config {
     public static int addTagVerticalDivider = 0;
     /** 添加标签页-智能标签与历史标签分隔线位置 */
     public static int addTagSmartHistoryDivider = 0;
+    /** 标签包裹符号样式 */
+    public static String tagBracketStyle = STYLE_FULLWIDTH;
+
+    /**
+     * 获取当前标签左包裹符号
+     *
+     * @return 左包裹符号
+     */
+    public static String getTagWrapLeft() {
+        return STYLE_BRACKET.equals(tagBracketStyle) ? "[" : "【";
+    }
+
+    /**
+     * 获取当前标签右包裹符号
+     *
+     * @return 右包裹符号
+     */
+    public static String getTagWrapRight() {
+        return STYLE_BRACKET.equals(tagBracketStyle) ? "]" : "】";
+    }
 
 }

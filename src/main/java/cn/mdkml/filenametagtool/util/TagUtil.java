@@ -96,7 +96,7 @@ public final class TagUtil {
             if (v.isEmpty()) {
                 continue;
             }
-            v = v.replace("【", "").replace("】", "").trim();
+            v = v.replace("【", "").replace("】", "").replace("[", "").replace("]", "").trim();
             if (v.isEmpty()) {
                 continue;
             }
