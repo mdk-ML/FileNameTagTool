@@ -20,7 +20,6 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.List;
-import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -30,13 +29,11 @@ public final class SwingUtil {
     private static volatile JDialog currentNotification;
 
     private static final Color GRADIENT_START = new Color(74, 144, 226);
-    private static final Color BG_LIGHT = new Color(248, 249, 250);
     private static final Color BG_WHITE = Color.WHITE;
     private static final Color BG_CONTENT = new Color(249, 249, 249);
     private static final Color BG_MAIN = new Color(240, 240, 240);
     private static final Color BORDER_GRAY = new Color(220, 220, 220);
     private static final Color TEXT_DARK = new Color(51, 51, 51);
-    private static final Color TEXT_LIGHT = Color.WHITE;
 
     /**
      * 初始化系统外观设置
@@ -1436,42 +1433,7 @@ public final class SwingUtil {
         refreshAction.run();
     }
 
-    /**
-     * 创建智能标签面板
-     *
-     * @param icon        图标
-     * @param title       标题
-     * @param value       值
-     * @param tagSupplier 标签提供者
-     * @return 智能标签面板
-     */
-    private static JPanel createSmartTagPanel(String icon, String title, String value, Supplier<String> tagSupplier) {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBackground(new Color(187, 222, 251));
-        panel.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
-        panel.setPreferredSize(new Dimension(180, 80));
-        JLabel iconLabel = new JLabel(icon);
-        iconLabel.setFont(new Font("SansSerif", Font.PLAIN, 18));
-        iconLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
-        titleLabel.setForeground(TEXT_DARK);
-        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        JLabel valueLabel = new JLabel(value);
-        valueLabel.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 12));
-        valueLabel.setForeground(new Color(70, 70, 70));
-        valueLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        panel.add(iconLabel);
-        panel.add(Box.createVerticalStrut(4));
-        panel.add(titleLabel);
-        panel.add(Box.createVerticalStrut(4));
-        panel.add(valueLabel);
-        panel.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        return panel;
-    }
-
-    /**
+     /**
      * 保存窗口位置
      *
      * @param window 窗口
@@ -1482,35 +1444,6 @@ public final class SwingUtil {
         Config.groupTagsWindowWidth = window.getWidth();
         Config.groupTagsWindowHeight = window.getHeight();
         ConfigUtil.save();
-    }
-
-    /**
-     * 样式化主要按钮
-     *
-     * @param b 按钮
-     */
-    private static void stylePrimaryButton(AbstractButton b) {
-        b.setForeground(TEXT_LIGHT);
-        b.setFocusPainted(false);
-        b.setOpaque(true);
-        b.setBorderPainted(false);
-        b.setPreferredSize(new Dimension(120, 44));
-        b.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 14));
-        b.setBorder(BorderFactory.createEmptyBorder(10, 24, 10, 24));
-    }
-
-    /**
-     * 样式化次要按钮
-     *
-     * @param b 按钮
-     */
-    private static void styleSecondaryButton(AbstractButton b) {
-        b.setBackground(BG_WHITE);
-        b.setForeground(GRADIENT_START);
-        b.setFocusPainted(false);
-        b.setOpaque(true);
-        b.setBorderPainted(true);
-        b.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(GRADIENT_START, 2, true), BorderFactory.createEmptyBorder(10, 24, 10, 24)));
     }
 
     /**
