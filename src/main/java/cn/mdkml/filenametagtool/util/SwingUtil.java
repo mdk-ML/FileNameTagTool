@@ -3,6 +3,7 @@ package cn.mdkml.filenametagtool.util;
 import cn.mdkml.filenametagtool.component.BadgeToggleButton;
 import cn.mdkml.filenametagtool.component.WrapLayout;
 import cn.mdkml.filenametagtool.model.Config;
+import cn.mdkml.filenametagtool.model.TabIndex;
 
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
@@ -298,10 +299,10 @@ public final class SwingUtil {
         final Runnable[] refreshAddTag = new Runnable[1];
         final Runnable[] refreshRemoveTag = new Runnable[1];
         final Runnable[] refreshSettings = new Runnable[1];
-        refreshSearch[0] = () -> finalTabbedPane.setComponentAt(0, createSearchTab(finalPath, refreshSearch[0]));
-        refreshAddTag[0] = () -> finalTabbedPane.setComponentAt(1, createAddTagTab(finalPath, refreshAddTag[0]));
-        refreshRemoveTag[0] = () -> finalTabbedPane.setComponentAt(2, createRemoveTagTab(finalPath, refreshRemoveTag[0]));
-        refreshSettings[0] = () -> finalTabbedPane.setComponentAt(3, createSettingsTab(finalPath, refreshSettings[0]));
+        refreshSearch[0] = () -> finalTabbedPane.setComponentAt(TabIndex.SEARCH, createSearchTab(finalPath, refreshSearch[0]));
+        refreshAddTag[0] = () -> finalTabbedPane.setComponentAt(TabIndex.ADD_TAG, createAddTagTab(finalPath, refreshAddTag[0]));
+        refreshRemoveTag[0] = () -> finalTabbedPane.setComponentAt(TabIndex.REMOVE_TAG, createRemoveTagTab(finalPath, refreshRemoveTag[0]));
+        refreshSettings[0] = () -> finalTabbedPane.setComponentAt(TabIndex.SETTINGS, createSettingsTab(finalPath, refreshSettings[0]));
 
         tabbedPane.addTab("搜索", null, createSearchTab(path, refreshSearch[0]));
         tabbedPane.addTab("添加标签", null, createAddTagTab(path, refreshAddTag[0], filesToSelect));
@@ -317,10 +318,10 @@ public final class SwingUtil {
         tabbedPane.addChangeListener(e -> {
             int selectedIndex = finalTabbedPane.getSelectedIndex();
             switch (selectedIndex) {
-                case 0 -> refreshSearch[0].run();
-                case 1 -> refreshAddTag[0].run();
-                case 2 -> refreshRemoveTag[0].run();
-                case 3 -> refreshSettings[0].run();
+                case TabIndex.SEARCH -> refreshSearch[0].run();
+                case TabIndex.ADD_TAG -> refreshAddTag[0].run();
+                case TabIndex.REMOVE_TAG -> refreshRemoveTag[0].run();
+                case TabIndex.SETTINGS -> refreshSettings[0].run();
             }
         });
 

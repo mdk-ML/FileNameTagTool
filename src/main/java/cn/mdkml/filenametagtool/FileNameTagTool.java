@@ -2,6 +2,7 @@ package cn.mdkml.filenametagtool;
 
 import cn.mdkml.filenametagtool.model.Action;
 import cn.mdkml.filenametagtool.model.Parsed;
+import cn.mdkml.filenametagtool.model.TabIndex;
 import cn.mdkml.filenametagtool.util.ConfigUtil;
 import cn.mdkml.filenametagtool.util.FileUtil;
 import cn.mdkml.filenametagtool.util.SwingUtil;
@@ -67,7 +68,7 @@ public final class FileNameTagTool {
                 SwingUtil.showError("无法获取文件所在目录");
                 return;
             }
-            int tab = action == Action.ADD ? 1 : 2; // 1=添加标签, 2=移除标签
+            int tab = action == Action.ADD ? TabIndex.ADD_TAG : TabIndex.REMOVE_TAG;
             SwingUtil.createTagManagerWindow(dir.toString(), tab, existing);
             return;
         }
