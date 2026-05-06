@@ -23,6 +23,8 @@ public class Config {
     public static final String KEY_ADD_TAG_HORIZONTAL_DIVIDER = "addTagTab.horizontalDivider";
     /** 添加标签页-右侧上下分隔线位置（文件列表 / 自定义标签输入） */
     public static final String KEY_ADD_TAG_VERTICAL_DIVIDER = "addTagTab.verticalDivider";
+    /** 添加标签页-智能标签与历史标签分隔线位置 */
+    public static final String KEY_ADD_TAG_SMART_HISTORY_DIVIDER = "addTagTab.smartHistoryDivider";
 
 
     public static int windowX = 0;
@@ -41,5 +43,7 @@ public class Config {
     public static int addTagHorizontalDivider = 0;
     /** 添加标签页-右侧上下分隔线位置 */
     public static int addTagVerticalDivider = 0;
+    /** 添加标签页-智能标签与历史标签分隔线位置 */
+    public static int addTagSmartHistoryDivider = 0;
 
 }

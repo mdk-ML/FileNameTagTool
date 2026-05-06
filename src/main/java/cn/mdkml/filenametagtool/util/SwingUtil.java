@@ -872,9 +872,16 @@ public final class SwingUtil {
         ConfigUtil.reload();
         List<String> history = new ArrayList<>();
         for (String tag : Config.tags) {
-            if (!FileUtil.TAG_ORDER_FILENAME.equals(tag) && !FileUtil.TAG_ORDER_VERSION.equals(tag)) {
-                history.add(tag);
+            if (FileUtil.TAG_ORDER_FILENAME.equals(tag)) {
+                continue;
             }
+            if (FileUtil.TAG_ORDER_VERSION.equals(tag)) {
+                continue;
+            }
+            if (FileUtil.TAG_ORDER_DATE.equals(tag)) {
+                continue;
+            }
+            history.add(tag);
         }
         JPanel tagsPanel = new JPanel();
         tagsPanel.setLayout(new BoxLayout(tagsPanel, BoxLayout.Y_AXIS));
@@ -897,7 +904,7 @@ public final class SwingUtil {
                             showMessage("请先在右侧选择要添加标签的文件");
                             return;
                         }
-                        applyTagToSelectedFiles(path, selectedFiles, List.of(tag), refreshAction);
+                        applyTagToSelectedFiles(  selectedFiles, List.of(tag), refreshAction);
                     }
                 }
             });
@@ -908,9 +915,51 @@ public final class SwingUtil {
         }
         enableRangeSelection(historyTagButtons);
 
+        // ==================== 左侧上部：智能标签模块 ====================
+        JPanel smartPanel = new JPanel();
+        smartPanel.setLayout(new BoxLayout(smartPanel, BoxLayout.Y_AXIS));
+        smartPanel.setBackground(BG_CONTENT);
+
+        // 当前日期智能标签
+        String todayDate = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
+        JToggleButton dateButton = new JToggleButton("当前日期 (" + todayDate + ")");
+        dateButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        dateButton.setFocusPainted(false);
+        dateButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        dateButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        dateButton.setHorizontalAlignment(SwingConstants.CENTER);
+        dateButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, dateButton.getPreferredSize().height));
+
+        // 双击日期标签：立即将该标签添加到所有已选中的文件
+        dateButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent event) {
+                if (event.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(event)) {
+                    if (selectedFiles.isEmpty()) {
+                        showMessage("请先在右侧选择要添加标签的文件");
+                        return;
+                    }
+                    applyTagToSelectedFiles( selectedFiles, List.of(todayDate), refreshAction);
+                }
+            }
+        });
+
+        smartPanel.add(dateButton);
+
+        JScrollPane smartScroll = new JScrollPane(smartPanel, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        smartScroll.setBackground(BG_CONTENT);
+        smartScroll.setBorder(BorderFactory.createTitledBorder("智能标签"));
+        smartScroll.setPreferredSize(new Dimension(0, 80));
+
         JScrollPane tagsScroll = new JScrollPane(tagsPanel, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         tagsScroll.setBackground(BG_CONTENT);
         tagsScroll.setBorder(BorderFactory.createTitledBorder("历史标签"));
+
+        // 智能标签与历史标签垂直分隔
+        JSplitPane leftSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, smartScroll, tagsScroll);
+        leftSplit.setResizeWeight(0.2);
+        leftSplit.setBackground(BG_CONTENT);
+        leftSplit.setBorder(null);
 
         // ==================== 右侧上部：当前目录文件模块 ====================
         File currentDir = new File(path);
@@ -983,7 +1032,7 @@ public final class SwingUtil {
         // 自定义标签输入区域用 TitledBorder 包裹，与历史标签和文件列表保持一致
         JScrollPane inputScroll = new JScrollPane(input);
         inputScroll.setBackground(BG_CONTENT);
-        inputScroll.setBorder(BorderFactory.createTitledBorder("自定义标签"));
+        inputScroll.setBorder(BorderFactory.createTitledBorder("自定义标签（多个标签用空格分隔）"));
         inputScroll.setPreferredSize(new Dimension(400, 120));
 
         // ==================== 嵌套 JSplitPane 实现三区域可拖拽 ====================
@@ -994,7 +1043,7 @@ public final class SwingUtil {
         rightSplit.setBorder(null);
 
         // 左右分隔：历史标签 / (文件列表 + 自定义标签)
-        JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, tagsScroll, rightSplit);
+        JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftSplit, rightSplit);
         mainSplit.setResizeWeight(0.3);
         mainSplit.setBackground(BG_CONTENT);
         mainSplit.setBorder(null);
@@ -1011,6 +1060,11 @@ public final class SwingUtil {
         } else {
             rightSplit.setDividerLocation(0.7);
         }
+        if (Config.addTagSmartHistoryDivider > 0) {
+            leftSplit.setDividerLocation(Config.addTagSmartHistoryDivider);
+        } else {
+            leftSplit.setDividerLocation(0.2);
+        }
 
         // 拖拽分隔线时自动保存位置到配置
         mainSplit.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, evt -> {
@@ -1019,6 +1073,10 @@ public final class SwingUtil {
         });
         rightSplit.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, evt -> {
             Config.addTagVerticalDivider = rightSplit.getDividerLocation();
+            ConfigUtil.save();
+        });
+        leftSplit.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, evt -> {
+            Config.addTagSmartHistoryDivider = leftSplit.getDividerLocation();
             ConfigUtil.save();
         });
 
@@ -1049,8 +1107,15 @@ public final class SwingUtil {
                 }
             }
 
-            // 合并自定义标签和选中的历史标签
+            // 收集智能标签
+            List<String> smartTags = new ArrayList<>();
+            if (dateButton.isSelected()) {
+                smartTags.add(todayDate);
+            }
+
+            // 合并所有标签
             List<String> allTags = new ArrayList<>();
+            allTags.addAll(smartTags);
             allTags.addAll(selectedHistoryTags);
             allTags.addAll(customTags);
 
@@ -1064,7 +1129,7 @@ public final class SwingUtil {
                 return;
             }
 
-            applyTagToSelectedFiles(path, selectedFiles, allTags, refreshAction);
+            applyTagToSelectedFiles(  selectedFiles, allTags, refreshAction);
         });
 
         // 回车键触发添加标签按钮
@@ -1102,12 +1167,11 @@ public final class SwingUtil {
     /**
      * 将指定标签添加到选中的文件，并刷新当前标签页。
      *
-     * @param path          当前目录路径
      * @param selectedFiles 已选中的文件列表
      * @param tags          要添加的标签列表
      * @param refreshAction 刷新回调
      */
-    private static void applyTagToSelectedFiles(String path, List<File> selectedFiles, List<String> tags, Runnable refreshAction) {
+    private static void applyTagToSelectedFiles(  List<File> selectedFiles, List<String> tags, Runnable refreshAction) {
         // 先记录新标签到配置，确保 Config.tags 已更新
         TagUtil.rememberTags(tags, new HashSet<>());
 
@@ -1191,7 +1255,7 @@ public final class SwingUtil {
                             showMessage("请先在右侧选择要移除标签的文件");
                             return;
                         }
-                        performRemove(path, selectedFiles, Set.of(tag), refreshAction);
+                        performRemove( selectedFiles, Set.of(tag), refreshAction);
                     }
                 }
             });
@@ -1290,7 +1354,7 @@ public final class SwingUtil {
                 return;
             }
 
-            performRemove(path, selectedFiles, selectedTags, refreshAction);
+            performRemove(selectedFiles, selectedTags, refreshAction);
         });
 
         JButton removeRefreshButton = new JButton("刷新");
@@ -1343,6 +1407,7 @@ public final class SwingUtil {
         DefaultListModel<String> tagListModel = new DefaultListModel<>();
         boolean hasFilename = false;
         boolean hasVersion = false;
+        boolean hasDate = false;
         for (String tag : Config.tags) {
             tagListModel.addElement(tag);
             if (FileUtil.TAG_ORDER_FILENAME.equals(tag)) {
@@ -1350,6 +1415,9 @@ public final class SwingUtil {
             }
             if (FileUtil.TAG_ORDER_VERSION.equals(tag)) {
                 hasVersion = true;
+            }
+            if (FileUtil.TAG_ORDER_DATE.equals(tag)) {
+                hasDate = true;
             }
         }
         // 首次使用时，添加默认的特殊占位项
@@ -1359,6 +1427,10 @@ public final class SwingUtil {
         if (!hasVersion) {
             int filenameIndex = tagListModel.indexOf(FileUtil.TAG_ORDER_FILENAME);
             tagListModel.add(filenameIndex + 1, FileUtil.TAG_ORDER_VERSION);
+        }
+        if (!hasDate) {
+            int versionIndex = tagListModel.indexOf(FileUtil.TAG_ORDER_VERSION);
+            tagListModel.add(versionIndex + 1, FileUtil.TAG_ORDER_DATE);
         }
 
         JList<String> tagJList = new JList<>(tagListModel);
@@ -1431,9 +1503,14 @@ public final class SwingUtil {
                     if (file.isFile()) {
                         for (String tag : FileUtil.parseAllTags(file.getName())) {
                             // 排除版本号标签
-                            if (!FileUtil.VERSION_TAG_PATTERN.matcher(tag).matches()) {
-                                scannedTags.add(tag);
+                            if (FileUtil.VERSION_TAG_PATTERN.matcher(tag).matches()) {
+                                continue;
                             }
+                            // 排除日期标签
+                            if (FileUtil.DATE_TAG_PATTERN.matcher(tag).matches()) {
+                                continue;
+                            }
+                            scannedTags.add(tag);
                         }
                     }
                 }
@@ -1443,6 +1520,7 @@ public final class SwingUtil {
             tagListModel.clear();
             tagListModel.addElement(FileUtil.TAG_ORDER_FILENAME);
             tagListModel.addElement(FileUtil.TAG_ORDER_VERSION);
+            tagListModel.addElement(FileUtil.TAG_ORDER_DATE);
             for (String tag : scannedTags) {
                 tagListModel.addElement(tag);
             }
@@ -1504,7 +1582,9 @@ public final class SwingUtil {
             label.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_GRAY), BorderFactory.createEmptyBorder(8, 12, 8, 12)));
 
             String text = value != null ? value.toString() : "";
-            boolean isSpecial = FileUtil.TAG_ORDER_FILENAME.equals(text) || FileUtil.TAG_ORDER_VERSION.equals(text);
+            boolean isSpecial = FileUtil.TAG_ORDER_FILENAME.equals(text)
+                    || FileUtil.TAG_ORDER_VERSION.equals(text)
+                    || FileUtil.TAG_ORDER_DATE.equals(text);
 
             if (isSelected) {
                 // 选中状态保持系统默认
@@ -1516,6 +1596,8 @@ public final class SwingUtil {
                     label.setText("{文件名}  —  源文件名在标签序列中的位置");
                 } else if (FileUtil.TAG_ORDER_VERSION.equals(text)) {
                     label.setText("{版本号}  —  版本号（如 V1、V2）在标签序列中的位置");
+                } else if (FileUtil.TAG_ORDER_DATE.equals(text)) {
+                    label.setText("{当前日期}  —  日期标签（如 20260506）在标签序列中的位置");
                 }
             } else {
                 label.setBackground(BG_WHITE);
@@ -1603,12 +1685,11 @@ public final class SwingUtil {
 
     /**
      *
-     * @param path          当前目录路径
      * @param selectedFiles 已选中的文件列表
      * @param tagsToRemove  要移除的标签集合
      * @param refreshAction 刷新回调
      */
-    private static void performRemove(String path, List<File> selectedFiles, Set<String> tagsToRemove, Runnable refreshAction) {
+    private static void performRemove(List<File> selectedFiles, Set<String> tagsToRemove, Runnable refreshAction) {
         if (tagsToRemove.isEmpty()) {
             showMessage("请先选择要移除的标签");
             return;

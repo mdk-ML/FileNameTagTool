@@ -115,6 +115,7 @@ public final class ConfigUtil {
         Config.tags = getList(Config.KEY_TAGS, Config.DELIMITER);
         Config.addTagHorizontalDivider = getInt(Config.KEY_ADD_TAG_HORIZONTAL_DIVIDER, Config.addTagHorizontalDivider);
         Config.addTagVerticalDivider = getInt(Config.KEY_ADD_TAG_VERTICAL_DIVIDER, Config.addTagVerticalDivider);
+        Config.addTagSmartHistoryDivider = getInt(Config.KEY_ADD_TAG_SMART_HISTORY_DIVIDER, Config.addTagSmartHistoryDivider);
     }
 
     /**
@@ -246,6 +247,7 @@ public final class ConfigUtil {
 
             writePropertyLine(writer, "# 添加标签页-左右分隔线位置", Config.KEY_ADD_TAG_HORIZONTAL_DIVIDER, String.valueOf(Config.addTagHorizontalDivider));
             writePropertyLine(writer, "# 添加标签页-右侧上下分隔线位置", Config.KEY_ADD_TAG_VERTICAL_DIVIDER, String.valueOf(Config.addTagVerticalDivider));
+            writePropertyLine(writer, "# 添加标签页-智能标签与历史标签分隔线位置", Config.KEY_ADD_TAG_SMART_HISTORY_DIVIDER, String.valueOf(Config.addTagSmartHistoryDivider));
             writer.newLine();
 
             writer.write("# 标签列表（多个标签用逗号分隔）");
@@ -285,6 +287,7 @@ public final class ConfigUtil {
         set(Config.KEY_TAGS, Config.tags, Config.DELIMITER);
         set(Config.KEY_ADD_TAG_HORIZONTAL_DIVIDER, Config.addTagHorizontalDivider);
         set(Config.KEY_ADD_TAG_VERTICAL_DIVIDER, Config.addTagVerticalDivider);
+        set(Config.KEY_ADD_TAG_SMART_HISTORY_DIVIDER, Config.addTagSmartHistoryDivider);
     }
 
 

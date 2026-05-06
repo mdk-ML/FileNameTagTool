@@ -13,12 +13,16 @@ public final class FileUtil {
 
     /** 版本号标签正则：V数字（不含括号的内部内容） */
     public static final Pattern VERSION_TAG_PATTERN = Pattern.compile("^V\\d+$");
+    /** 日期标签正则：8位数字（如 20260506） */
+    public static final Pattern DATE_TAG_PATTERN = Pattern.compile("^\\d{8}$");
     /** 匹配所有【...】标签（不限于前导位置） */
     private static final Pattern ALL_TAGS_PATTERN = Pattern.compile("【[^】]*】");
     /** 标签排序中的特殊占位：源文件名位置 */
     public static final String TAG_ORDER_FILENAME = "{文件名}";
     /** 标签排序中的特殊占位：版本号位置 */
     public static final String TAG_ORDER_VERSION = "{版本号}";
+    /** 标签排序中的特殊占位：当前日期标签位置 */
+    public static final String TAG_ORDER_DATE = "{当前日期}";
 
     /**
      * 按照 Config.tags 的顺序重构文件名，将新标签合并到已有标签中。
@@ -124,7 +128,19 @@ public final class FileUtil {
         if (parent == null || fileName == null) return false;
 
         String leaf = fileName.toString();
-        String newLeaf = removeSpecificTagsFromLeafPreserveExt(leaf, tagsToRemove);
+        int dot = leaf.lastIndexOf('.');
+        String base = dot > 0 ? leaf.substring(0, dot) : leaf;
+        String ext = dot > 0 ? leaf.substring(dot) : "";
+
+        List<String> existing = parseAllTags(base);
+        List<String> remaining = new ArrayList<>();
+        for (String tag : existing) {
+            if (!tagsToRemove.contains(tag)) {
+                remaining.add(tag);
+            }
+        }
+        String rest = ALL_TAGS_PATTERN.matcher(base).replaceAll("");
+        String newLeaf = buildOrderedName(rest, remaining) + ext;
         if (newLeaf.equals(leaf)) return false;
         if (newLeaf.trim().isEmpty()) return false;
 
@@ -274,9 +290,12 @@ public final class FileUtil {
         // 分类标签
         List<String> normalTags = new ArrayList<>();
         List<String> versionTags = new ArrayList<>();
+        List<String> dateTags = new ArrayList<>();
         for (String tag : tags) {
             if (VERSION_TAG_PATTERN.matcher(tag).matches()) {
                 versionTags.add(tag);
+            } else if (DATE_TAG_PATTERN.matcher(tag).matches()) {
+                dateTags.add(tag);
             } else {
                 normalTags.add(tag);
             }
@@ -284,7 +303,6 @@ public final class FileUtil {
 
         // 标记已使用的标签
         boolean[] normalUsed = new boolean[normalTags.size()];
-        boolean[] versionUsed = new boolean[versionTags.size()];
         boolean baseNamePlaced = false;
 
         StringBuilder result = new StringBuilder();
@@ -295,10 +313,15 @@ public final class FileUtil {
                 result.append(baseName);
                 baseNamePlaced = true;
             } else if (TAG_ORDER_VERSION.equals(orderItem)) {
-                for (int i = 0; i < versionTags.size(); i++) {
-                    result.append("【").append(versionTags.get(i)).append("】");
-                    versionUsed[i] = true;
+                for (String tag : versionTags) {
+                    result.append("【").append(tag).append("】");
                 }
+                versionTags.clear();
+            } else if (TAG_ORDER_DATE.equals(orderItem)) {
+                for (String tag : dateTags) {
+                    result.append("【").append(tag).append("】");
+                }
+                dateTags.clear();
             } else {
                 // 普通标签：查找与 configOrder 匹配的标签
                 for (int i = 0; i < normalTags.size(); i++) {
@@ -317,10 +340,11 @@ public final class FileUtil {
                 result.append("【").append(normalTags.get(i)).append("】");
             }
         }
-        for (int i = 0; i < versionTags.size(); i++) {
-            if (!versionUsed[i]) {
-                result.append("【").append(versionTags.get(i)).append("】");
-            }
+        for (String tag : versionTags) {
+            result.append("【").append(tag).append("】");
+        }
+        for (String tag : dateTags) {
+            result.append("【").append(tag).append("】");
         }
 
         // 文件名未在配置中指定位置，追加到末尾
@@ -345,46 +369,6 @@ public final class FileUtil {
             return ALL_TAGS_PATTERN.matcher(base).replaceAll("") + ext;
         }
         return ALL_TAGS_PATTERN.matcher(leaf).replaceAll("");
-    }
-
-    /**
-     * 移除文件名中的指定标签，保留扩展名
-     *
-     * @param leaf         文件名
-     * @param tagsToRemove 要移除的标签集合
-     * @return 新的文件名
-     */
-    private static String removeSpecificTagsFromLeafPreserveExt(String leaf, Set<String> tagsToRemove) {
-        int dot = leaf.lastIndexOf('.');
-        if (dot > 0) {
-            String base = leaf.substring(0, dot);
-            String ext = leaf.substring(dot);
-            String cleaned = removeSpecificTags(base, tagsToRemove);
-            return cleaned + ext;
-        }
-        return removeSpecificTags(leaf, tagsToRemove);
-    }
-
-    /**
-     * 移除基础名中的指定标签
-     *
-     * @param name         基础名
-     * @param tagsToRemove 要移除的标签集合
-     * @return 新的基础名
-     */
-    private static String removeSpecificTags(String name, Set<String> tagsToRemove) {
-        List<String> existingTags = parseAllTags(name);
-        List<String> remainingTags = new java.util.ArrayList<>();
-        for (String tag : existingTags) {
-            if (!tagsToRemove.contains(tag)) {
-                remainingTags.add(tag);
-            }
-        }
-        String rest = ALL_TAGS_PATTERN.matcher(name).replaceAll("");
-        if (remainingTags.isEmpty()) {
-            return rest;
-        }
-        return buildTagPrefix(remainingTags) + rest;
     }
 
     /**
@@ -415,20 +399,6 @@ public final class FileUtil {
             }
         }
         return out;
-    }
-
-    /**
-     * 构建标签前缀
-     *
-     * @param tags 标签列表
-     * @return 标签前缀字符串
-     */
-    private static String buildTagPrefix(List<String> tags) {
-        StringBuilder sb = new StringBuilder();
-        for (String t : tags) {
-            sb.append("【").append(t).append("】");
-        }
-        return sb.toString();
     }
 
     /**

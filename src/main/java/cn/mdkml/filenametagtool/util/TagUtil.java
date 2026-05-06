@@ -44,7 +44,8 @@ public final class TagUtil {
         // 筛选出尚未记录的新标签，排除版本号标签
         List<String> newTags = new ArrayList<>();
         for (String tag : incoming) {
-            if (FileUtil.VERSION_TAG_PATTERN.matcher(tag).matches()) {
+            if (FileUtil.VERSION_TAG_PATTERN.matcher(tag).matches()
+                    || FileUtil.DATE_TAG_PATTERN.matcher(tag).matches()) {
                 continue;
             }
             boolean exists = false;
