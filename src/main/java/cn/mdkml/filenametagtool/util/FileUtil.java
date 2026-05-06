@@ -164,7 +164,32 @@ public final class FileUtil {
         if (parent == null || fileName == null) return false;
 
         String leaf = fileName.toString();
-        String newLeaf = generateNewVersionName(leaf);
+        int dot = leaf.lastIndexOf('.');
+        String base = dot > 0 ? leaf.substring(0, dot) : leaf;
+        String ext = dot > 0 ? leaf.substring(dot) : "";
+
+        List<String> tags = parseAllTags(base);
+        String rest = ALL_TAGS_PATTERN.matcher(base).replaceAll("");
+
+        // 查找并递增版本号
+        boolean found = false;
+        for (int i = 0; i < tags.size(); i++) {
+            if (VERSION_TAG_PATTERN.matcher(tags.get(i)).matches()) {
+                try {
+                    int ver = Integer.parseInt(tags.get(i).substring(1)) + 1;
+                    tags.set(i, "V" + ver);
+                } catch (NumberFormatException e) {
+                    tags.set(i, "V2");
+                }
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            tags.add(0, "V2");
+        }
+
+        String newLeaf = buildOrderedName(rest, tags) + ext;
         if (newLeaf.equals(leaf)) return false;
 
         Path target = parent.resolve(newLeaf);
@@ -399,42 +424,6 @@ public final class FileUtil {
             }
         }
         return out;
-    }
-
-    /**
-     * 生成新版本的文件名
-     *
-     * @param leaf 文件名
-     * @return 新版本的文件名
-     */
-    private static String generateNewVersionName(String leaf) {
-        int dot = leaf.lastIndexOf('.');
-        String base, ext;
-        if (dot > 0) {
-            base = leaf.substring(0, dot);
-            ext = leaf.substring(dot);
-        } else {
-            base = leaf;
-            ext = "";
-        }
-
-        java.util.regex.Pattern versionPattern = java.util.regex.Pattern.compile("^(?:【[^】]*】)*【V(\\d+)】");
-        java.util.regex.Matcher matcher = versionPattern.matcher(base);
-
-        if (matcher.find()) {
-            try {
-                String versionStr = matcher.group(1);
-                int version = Integer.parseInt(versionStr);
-                int newVersion = version + 1;
-                String newBase = matcher.replaceFirst("【V" + newVersion + "】");
-                return newBase + ext;
-            } catch (NumberFormatException e) {
-                String prefix = matcher.replaceFirst("");
-                return prefix + "【V2】" + ext;
-            }
-        } else {
-            return "【V2】" + base + ext;
-        }
     }
 
     /**
