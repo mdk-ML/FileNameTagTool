@@ -1089,6 +1089,13 @@ public final class SwingUtil {
         buttonPanel.add(addRefreshButton);
         panel.add(buttonPanel, BorderLayout.SOUTH);
 
+        // 面板显示后自动聚焦到自定义标签输入框
+        panel.addHierarchyListener(event -> {
+            if ((event.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0 && panel.isShowing()) {
+                SwingUtilities.invokeLater(input::requestFocusInWindow);
+            }
+        });
+
         return panel;
     }
 
