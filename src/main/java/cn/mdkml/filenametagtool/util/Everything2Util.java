@@ -14,8 +14,9 @@ import java.util.List;
  * Everything 搜索工具类
  * 依赖官方 Everything32.dll/Everything64.dll
  * 要求：Everything客户端必须在后台运行
+ * Version 2 is for Everything 1.4
  */
-public class EverythingUtil {
+public class Everything2Util {
 
     // 定义DLL接口
     private interface EverythingDll extends Library {
@@ -132,24 +133,23 @@ public class EverythingUtil {
     }
 
     // 单例模式
-    private static final EverythingUtil INSTANCE = new EverythingUtil();
+    private static final Everything2Util INSTANCE = new Everything2Util();
 
     /** DLL 是否加载成功 */
     private final boolean loaded;
 
-    private EverythingUtil() {
+    private Everything2Util() {
         boolean success;
         try {
             EverythingDll.INSTANCE.Everything_GetLastError();
             success = true;
         } catch (Throwable e) {
-            SwingUtil.showError("加载 Everything DLL 失败，请确保 Everything32.dll/Everything64.dll 在项目根目录");
-            success = false;
+            throw new RuntimeException("加载 Everything DLL 失败，请确保 Everything32.dll/Everything64.dll 在项目根目录", e);
         }
         this.loaded = success;
     }
 
-    public static EverythingUtil getInstance() {
+    public static Everything2Util getInstance() {
         return INSTANCE;
     }
 
@@ -187,8 +187,7 @@ public class EverythingUtil {
             boolean success = EverythingDll.INSTANCE.Everything_QueryW(true);
             if (!success) {
                 int errorCode = EverythingDll.INSTANCE.Everything_GetLastError();
-                SwingUtil.showError("Everything 搜索失败，错误代码: " + errorCode);
-                return results;
+                throw new RuntimeException("Everything 搜索失败，错误代码: " + errorCode);
             }
 
             // 获取结果数量
@@ -288,7 +287,7 @@ public class EverythingUtil {
 
     // 测试方法
     public static void main(String[] args) {
-        EverythingUtil searcher = EverythingUtil.getInstance();
+        Everything2Util searcher = Everything2Util.getInstance();
 
         if (!searcher.isEverythingRunning()) {
             System.err.println("错误：Everything客户端未运行，请先启动Everything");
@@ -324,7 +323,7 @@ public class EverythingUtil {
         try {
             new ProcessBuilder(everythingPath, "-search", query).start();
         } catch (Exception e) {
-            SwingUtil.showError("启动 Everything 失败：" + e.getMessage());
+            throw new RuntimeException("启动 Everything 失败：" + e.getMessage(), e);
         }
     }
 }

@@ -359,7 +359,14 @@ public final class SwingUtil {
         panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
         panel.setBackground(BG_CONTENT);
 
-        EverythingUtil searcher = EverythingUtil.getInstance();
+        Everything2Util searcher;
+        try {
+            searcher = Everything2Util.getInstance();
+        } catch (RuntimeException e) {
+            showError(e.getMessage());
+            return panel;
+        }
+        
         if (!searcher.isEverythingRunning()) {
             JLabel errorLabel = new JLabel("错误：Everything 客户端未运行，请先启动 Everything");
             errorLabel.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 14));
@@ -370,11 +377,17 @@ public final class SwingUtil {
 
         String wrapL = Config.getTagWrapLeft();
         String wrapR = Config.getTagWrapRight();
-        List<EverythingUtil.SearchResult> results = searcher.search(wrapL + " " + wrapR, path);
+        List<Everything2Util.SearchResult> results;
+        try {
+            results = searcher.search(wrapL + " " + wrapR, path);
+        } catch (RuntimeException e) {
+            showError(e.getMessage());
+            return panel;
+        }
 
         Map<String, Integer> tagCount = new LinkedHashMap<>();
         Pattern pattern = Pattern.compile(Pattern.quote(wrapL) + "([^" + Pattern.quote(wrapR) + "]+)" + Pattern.quote(wrapR));
-        for (EverythingUtil.SearchResult result : results) {
+        for (Everything2Util.SearchResult result : results) {
             String fileName = result.getFileName();
             Matcher matcher = pattern.matcher(fileName);
             while (matcher.find()) {
@@ -422,7 +435,11 @@ public final class SwingUtil {
                                 }
                             }
                             String searchQuery = path + " " + Config.getTagWrapLeft() + tag + Config.getTagWrapRight();
-                            EverythingUtil.launchEverythingUI(searchQuery, Config.everythingPath);
+                            try {
+                                Everything2Util.launchEverythingUI(searchQuery, Config.everythingPath);
+                            } catch (RuntimeException ex) {
+                                showError(ex.getMessage());
+                            }
                         }
                     }
                 });
@@ -458,7 +475,11 @@ public final class SwingUtil {
                 for (String tag : selectedTags) {
                     queryBuilder.append(" ").append(Config.getTagWrapLeft()).append(tag).append(Config.getTagWrapRight());
                 }
-                EverythingUtil.launchEverythingUI(queryBuilder.toString(), Config.everythingPath);
+                try {
+                    Everything2Util.launchEverythingUI(queryBuilder.toString(), Config.everythingPath);
+                } catch (RuntimeException ex) {
+                    showError(ex.getMessage());
+                }
             }
         });
 
