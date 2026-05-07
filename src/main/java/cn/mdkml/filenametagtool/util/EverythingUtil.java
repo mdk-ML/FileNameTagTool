@@ -1,13 +1,10 @@
 package cn.mdkml.filenametagtool.util;
 
-import com.sun.jna.Library;
-import com.sun.jna.Native;
-import com.sun.jna.WString;
-import com.sun.jna.platform.win32.WinBase;
+import cn.mdkml.filenametagtool.model.SearchResult;
+import com.sun.jna.*;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 /**
@@ -16,7 +13,14 @@ import java.util.List;
  * 要求：Everything客户端必须在后台运行
  * Version 2 is for Everything 1.4
  */
-public class Everything2Util {
+public class EverythingUtil {
+
+    private static final int EVERYTHING_REQUEST_FILE_NAME = 0x00000001;
+    private static final int EVERYTHING_REQUEST_PATH = 0x00000002;
+    private static final int EVERYTHING_REQUEST_SIZE = 0x00000010;
+    private static final int EVERYTHING_REQUEST_DATE_MODIFIED = 0x00000020;
+    private static final int EVERYTHING_REQUEST_FLAGS =
+            EVERYTHING_REQUEST_FILE_NAME | EVERYTHING_REQUEST_PATH | EVERYTHING_REQUEST_SIZE | EVERYTHING_REQUEST_DATE_MODIFIED;
 
     // 定义DLL接口
     private interface EverythingDll extends Library {
@@ -40,6 +44,9 @@ public class Everything2Util {
         // 设置偏移量（用于分页）
         void Everything_SetOffset(int offset);
 
+        // 设置请求的属性标志
+        void Everything_SetRequestFlags(int flags);
+
         // 执行搜索
         boolean Everything_QueryW(boolean wait);
 
@@ -55,11 +62,11 @@ public class Everything2Util {
         // 获取文件路径（Unicode）
         WString Everything_GetResultPathW(int index);
 
-        // 获取文件大小
-        long Everything_GetResultSize(int index);
+        // 获取文件大小（通过指针返回）
+        boolean Everything_GetResultSize(int index, long[] size);
 
-        // 获取文件修改时间（FILETIME格式）
-        void Everything_GetResultDateModified(int index, WinBase.FILETIME fileTime);
+        // 获取文件修改时间（FILETIME格式，通过指针返回）
+        boolean Everything_GetResultDateModified(int index, Pointer fileTime);
 
         // 判断是否为文件夹
         boolean Everything_IsFolderResult(int index);
@@ -74,71 +81,13 @@ public class Everything2Util {
         int Everything_GetLastError();
     }
 
-    // 搜索结果实体类
-    public static class SearchResult {
-        private final String fullPath;
-        private final String fileName;
-        private final long size;
-        private final long lastModified;
-        private final boolean isDirectory;
-
-        public SearchResult(String fullPath, String fileName, long size, long lastModified, boolean isDirectory) {
-            this.fullPath = fullPath;
-            this.fileName = fileName;
-            this.size = size;
-            this.lastModified = lastModified;
-            this.isDirectory = isDirectory;
-        }
-
-        // Getter方法
-        public String getFullPath() {
-            return fullPath;
-        }
-
-        public String getFileName() {
-            return fileName;
-        }
-
-        public long getSize() {
-            return size;
-        }
-
-        public long getLastModified() {
-            return lastModified;
-        }
-
-        public boolean isDirectory() {
-            return isDirectory;
-        }
-
-        @Override
-        public String toString() {
-            return (isDirectory ? "[文件夹] " : "[文件] ") + fullPath +
-                    " (大小: " + formatSize(size) + ", 修改时间: " + new Date(lastModified) + ")";
-        }
-
-        // 格式化文件大小
-        private String formatSize(long size) {
-            if (size < 1024) {
-                return size + " B";
-            }
-            if (size < 1024 * 1024) {
-                return String.format("%.2f KB", size / 1024.0);
-            }
-            if (size < 1024 * 1024 * 1024) {
-                return String.format("%.2f MB", size / (1024.0 * 1024));
-            }
-            return String.format("%.2f GB", size / (1024.0 * 1024 * 1024));
-        }
-    }
-
     // 单例模式
-    private static final Everything2Util INSTANCE = new Everything2Util();
+    private static final EverythingUtil INSTANCE = new EverythingUtil();
 
     /** DLL 是否加载成功 */
     private final boolean loaded;
 
-    private Everything2Util() {
+    private EverythingUtil() {
         boolean success;
         try {
             EverythingDll.INSTANCE.Everything_GetLastError();
@@ -149,7 +98,7 @@ public class Everything2Util {
         this.loaded = success;
     }
 
-    public static Everything2Util getInstance() {
+    public static EverythingUtil getInstance() {
         return INSTANCE;
     }
 
@@ -182,6 +131,7 @@ public class Everything2Util {
             EverythingDll.INSTANCE.Everything_SetMatchWholeWord(matchWholeWord);
             EverythingDll.INSTANCE.Everything_SetMatchPath(matchPath);
             EverythingDll.INSTANCE.Everything_SetRegex(useRegex);
+//            EverythingDll.INSTANCE.Everything_SetRequestFlags(EVERYTHING_REQUEST_FLAGS);
 
             // 执行搜索（等待完成）
             boolean success = EverythingDll.INSTANCE.Everything_QueryW(true);
@@ -199,15 +149,18 @@ public class Everything2Util {
                 String name = EverythingDll.INSTANCE.Everything_GetResultFileNameW(i).toString();
                 String fullPath = path + File.separator + name;
 
-                long size = EverythingDll.INSTANCE.Everything_GetResultSize(i);
-
-                WinBase.FILETIME ft = new WinBase.FILETIME();
-                EverythingDll.INSTANCE.Everything_GetResultDateModified(i, ft);
-                long lastModified = ft.toTime();
+//                long[] sizeArr = new long[1];
+//                EverythingDll.INSTANCE.Everything_GetResultSize(i, sizeArr);
+//                long size = sizeArr[0];
+//
+//                Memory ftMem = new Memory(8);
+//                EverythingDll.INSTANCE.Everything_GetResultDateModified(i, ftMem);
+//                long fileTime = ftMem.getLong(0);
+//                long lastModified = (fileTime / 10000) - 11644473600000L;
 
                 boolean isDirectory = EverythingDll.INSTANCE.Everything_IsFolderResult(i);
 
-                results.add(new SearchResult(fullPath, name, size, lastModified, isDirectory));
+                results.add(new SearchResult(fullPath, name, isDirectory));
             }
 
         } finally {
@@ -287,18 +240,18 @@ public class Everything2Util {
 
     // 测试方法
     public static void main(String[] args) {
-        Everything2Util searcher = Everything2Util.getInstance();
+        EverythingUtil searcher = EverythingUtil.getInstance();
 
         if (!searcher.isEverythingRunning()) {
             System.err.println("错误：Everything客户端未运行，请先启动Everything");
             return;
         }
 
-        System.out.println("=== 测试1：简单搜索 *.java 文件 ===");
-        List<SearchResult> results0 = searcher.search("*.java");
-        for (SearchResult result : results0) {
-            System.out.println(result);
-        }
+//        System.out.println("=== 测试1：简单搜索 *.java 文件 ===");
+//        List<SearchResult> results0 = searcher.search("*.java");
+//        for (SearchResult result : results0) {
+//            System.out.println(result);
+//        }
 
         List<SearchResult> results1 = searcher.search("【 】", "C:\\Users\\MU\\Desktop\\【测试】FileNameTagTool");
         for (SearchResult result : results1) {
@@ -306,17 +259,17 @@ public class Everything2Util {
             System.out.println("======");
             System.out.println(result.getFileName());
         }
-        System.out.println("\n=== 测试2：搜索指定路径下的 PDF 文件 ===");
-        List<SearchResult> results2 = searcher.searchByExtension("pdf", "C:\\Users\\Public\\Documents");
-        for (SearchResult result : results2) {
-            System.out.println(result);
-        }
-
-        System.out.println("\n=== 测试3：搜索文件夹 ===");
-        List<SearchResult> results3 = searcher.searchFolders("Downloads");
-        for (SearchResult result : results3) {
-            System.out.println(result);
-        }
+//        System.out.println("\n=== 测试2：搜索指定路径下的 PDF 文件 ===");
+//        List<SearchResult> results2 = searcher.searchByExtension("pdf", "C:\\Users\\Public\\Documents");
+//        for (SearchResult result : results2) {
+//            System.out.println(result);
+//        }
+//
+//        System.out.println("\n=== 测试3：搜索文件夹 ===");
+//        List<SearchResult> results3 = searcher.searchFolders("Downloads");
+//        for (SearchResult result : results3) {
+//            System.out.println(result);
+//        }
     }
 
     public static void launchEverythingUI(String query, String everythingPath) {
