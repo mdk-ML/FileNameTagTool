@@ -732,6 +732,7 @@ public final class SwingUtil {
         JScrollPane filesScroll = new JScrollPane(fileTable);
         filesScroll.getVerticalScrollBar().setUnitIncrement(16);
         filesScroll.setBackground(BG_CONTENT);
+        filesScroll.getViewport().setBackground(BG_CONTENT);
 
         // 搜索输入框（内嵌清除按钮和搜索图标）
         JLabel searchIconLabel = new JLabel(createSearchIcon());
@@ -743,7 +744,7 @@ public final class SwingUtil {
         searchField.setToolTipText("输入文件名进行搜索，支持中英文及特殊字符（Enter 搜索，Esc 清除）");
         searchField.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 2));
 
-        JLabel searchPlaceholder = new JLabel("搜索文件...");
+        JLabel searchPlaceholder = new JLabel("搜索文件");
         searchPlaceholder.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
         searchPlaceholder.setForeground(new Color(160, 160, 160));
         searchPlaceholder.setOpaque(false);
@@ -1285,6 +1286,7 @@ public final class SwingUtil {
         JScrollPane filesScroll = new JScrollPane(fileTable);
         filesScroll.getVerticalScrollBar().setUnitIncrement(16);
         filesScroll.setBackground(BG_CONTENT);
+        filesScroll.getViewport().setBackground(BG_CONTENT);
 
         // 搜索输入框（内嵌清除按钮和搜索图标）
         JLabel removeSearchIconLabel = new JLabel(createSearchIcon());
@@ -1296,7 +1298,7 @@ public final class SwingUtil {
         removeSearchField.setToolTipText("输入文件名进行搜索，支持中英文及特殊字符（Enter 搜索，Esc 清除）");
         removeSearchField.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 2));
 
-        JLabel removeSearchPlaceholder = new JLabel("搜索文件...");
+        JLabel removeSearchPlaceholder = new JLabel("搜索文件");
         removeSearchPlaceholder.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
         removeSearchPlaceholder.setForeground(new Color(160, 160, 160));
         removeSearchPlaceholder.setOpaque(false);
