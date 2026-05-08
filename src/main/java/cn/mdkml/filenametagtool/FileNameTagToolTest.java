@@ -58,7 +58,7 @@ public class FileNameTagToolTest {
 
         String[] args = {
             "add",
-            "C:\\Users\\MU\\Desktop\\【测试】FileNameTagTool\\新投集团司库信息系统-招标文件-需求部分.doc"
+            "C:\\Users\\MU\\Desktop\\PMP\\预测部分思维导图汇总.pdf"
         };
 
         final Parsed parsed = Parsed.parseArgs(args);

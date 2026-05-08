@@ -367,7 +367,7 @@ public final class SwingUtil {
             showError(e.getMessage());
             return panel;
         }
-        
+
         if (!searcher.isEverythingRunning()) {
             JLabel errorLabel = new JLabel("错误：Everything 客户端未运行，请先启动 Everything");
             errorLabel.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 14));
@@ -474,7 +474,10 @@ public final class SwingUtil {
             if (!selectedTags.isEmpty()) {
                 StringBuilder queryBuilder = new StringBuilder(path);
                 for (String tag : selectedTags) {
-                    queryBuilder.append(" ").append(Config.getTagWrapLeft()).append(tag).append(Config.getTagWrapRight());
+                    queryBuilder.append(" ")
+                                .append(Config.getTagWrapLeft())
+                                .append(tag)
+                                .append(Config.getTagWrapRight());
                 }
                 try {
                     EverythingUtil.launchEverythingUI(queryBuilder.toString(), Config.everythingPath);
@@ -633,7 +636,7 @@ public final class SwingUtil {
             for (File file : files) {
                 if (file.isFile()) {
                     final File currentFile = file;
-                    JToggleButton fileButton = new JToggleButton("<html><div style='text-align:left;width:100%;'>" + file.getName() + "</div></html>");
+                    JToggleButton fileButton = new JToggleButton(file.getName());
                     fileButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
                     fileButton.setFocusPainted(false);
                     fileButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
@@ -666,10 +669,10 @@ public final class SwingUtil {
                     selectNames.add(fn.toString());
                 }
             }
-            for (int i = 0; i < fileButtons.size(); i++) {
-                File f = files[i];
-                if (f.isFile() && selectNames.contains(f.getName())) {
-                    fileButtons.get(i).setSelected(true);
+
+            for (JToggleButton fileButton : fileButtons) {
+                if (selectNames.contains(fileButton.getText())) {
+                    fileButton.setSelected(true);
                 }
             }
         }
@@ -961,7 +964,7 @@ public final class SwingUtil {
         final List<JToggleButton> fileButtons = new ArrayList<>();
         for (File file : taggedFiles) {
             final File currentFile = file;
-            JToggleButton fileButton = new JToggleButton("<html><div style='text-align:left;width:100%;'>" + file.getName() + "</div></html>");
+            JToggleButton fileButton = new JToggleButton(file.getName());
             fileButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
             fileButton.setFocusPainted(false);
             fileButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
@@ -992,10 +995,9 @@ public final class SwingUtil {
                     selectNames.add(fn.toString());
                 }
             }
-            for (int i = 0; i < fileButtons.size(); i++) {
-                File f = taggedFiles.get(i);
-                if (selectNames.contains(f.getName())) {
-                    fileButtons.get(i).setSelected(true);
+            for (JToggleButton fileButton : fileButtons) {
+                if (selectNames.contains(fileButton.getText())) {
+                    fileButton.setSelected(true);
                 }
             }
         }
@@ -1455,7 +1457,7 @@ public final class SwingUtil {
         refreshAction.run();
     }
 
-     /**
+    /**
      * 保存窗口位置
      *
      * @param window 窗口
