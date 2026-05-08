@@ -678,6 +678,7 @@ public final class SwingUtil {
         }
 
         JScrollPane filesScroll = new JScrollPane(filesPanel);
+        filesScroll.getVerticalScrollBar().setUnitIncrement(16);
         filesScroll.setBackground(BG_CONTENT);
         filesScroll.setBorder(BorderFactory.createTitledBorder("当前目录文件"));
 
@@ -1003,6 +1004,7 @@ public final class SwingUtil {
         }
 
         JScrollPane filesScroll = new JScrollPane(filesPanel);
+        filesScroll.getVerticalScrollBar().setUnitIncrement(16);
         filesScroll.setBackground(BG_CONTENT);
         filesScroll.setBorder(BorderFactory.createTitledBorder("有标签的文件"));
 
