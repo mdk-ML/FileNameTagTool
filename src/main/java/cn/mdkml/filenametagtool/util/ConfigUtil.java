@@ -117,6 +117,9 @@ public final class ConfigUtil {
         Config.addTagVerticalDivider = getInt(Config.KEY_ADD_TAG_VERTICAL_DIVIDER, Config.addTagVerticalDivider);
         Config.addTagSmartHistoryDivider = getInt(Config.KEY_ADD_TAG_SMART_HISTORY_DIVIDER, Config.addTagSmartHistoryDivider);
         Config.tagBracketStyle = properties.getProperty(Config.KEY_TAG_BRACKET_STYLE, Config.tagBracketStyle);
+        Config.fileSortColumn = getInt(Config.KEY_FILE_SORT_COLUMN, Config.fileSortColumn);
+        Config.fileSortAscending = getInt(Config.KEY_FILE_SORT_ASCENDING, Config.fileSortAscending ? 0 : 1) == 0;
+        Config.fileColumnWidths = getIntArray(Config.KEY_FILE_COLUMN_WIDTHS, Config.fileColumnWidths);
     }
 
     /**
@@ -157,6 +160,30 @@ public final class ConfigUtil {
             }
         }
         return result;
+    }
+
+    /**
+     * 获取整型数组配置值
+     *
+     * @param key          配置键名
+     * @param defaultValue 默认值
+     * @return 配置值数组
+     */
+    public static int[] getIntArray(String key, int[] defaultValue) {
+        String value = properties.getProperty(key);
+        if (value == null || value.trim().isEmpty()) {
+            return defaultValue;
+        }
+        try {
+            String[] parts = value.split(",");
+            int[] result = new int[parts.length];
+            for (int i = 0; i < parts.length; i++) {
+                result[i] = Integer.parseInt(parts[i].trim());
+            }
+            return result.length > 0 ? result : defaultValue;
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
     }
 
     /**
@@ -261,6 +288,11 @@ public final class ConfigUtil {
             writePropertyLine(writer, "# 标签包裹符号样式（fullwidth=全角【】 bracket=半角[]）", Config.KEY_TAG_BRACKET_STYLE, Config.tagBracketStyle);
             writer.newLine();
 
+            writePropertyLine(writer, "# 文件列表排序列索引（0=名称, 1=修改日期, 2=类型, 3=大小）", Config.KEY_FILE_SORT_COLUMN, String.valueOf(Config.fileSortColumn));
+            writePropertyLine(writer, "# 文件列表排序方向（0=升序, 1=降序）", Config.KEY_FILE_SORT_ASCENDING, Config.fileSortAscending ? "0" : "1");
+            writePropertyLine(writer, "# 文件列表各列宽度（名称,修改日期,类型,大小）", Config.KEY_FILE_COLUMN_WIDTHS, intArrayToString(Config.fileColumnWidths));
+            writer.newLine();
+
             writer.write("# 标签列表（多个标签用逗号分隔）");
             writer.newLine();
             writer.write(Config.KEY_TAGS + "=" + String.join(Config.DELIMITER, Config.tags));
@@ -300,5 +332,24 @@ public final class ConfigUtil {
         set(Config.KEY_ADD_TAG_VERTICAL_DIVIDER, Config.addTagVerticalDivider);
         set(Config.KEY_ADD_TAG_SMART_HISTORY_DIVIDER, Config.addTagSmartHistoryDivider);
         set(Config.KEY_TAG_BRACKET_STYLE, Config.tagBracketStyle);
+        set(Config.KEY_FILE_SORT_COLUMN, Config.fileSortColumn);
+        set(Config.KEY_FILE_SORT_ASCENDING, Config.fileSortAscending ? 0 : 1);
+        set(Config.KEY_FILE_COLUMN_WIDTHS, intArrayToString(Config.fileColumnWidths));
+    }
+
+    /**
+     * 将整型数组转换为逗号分隔的字符串
+     *
+     * @param arr 整型数组
+     * @return 逗号分隔的字符串
+     */
+    private static String intArrayToString(int[] arr) {
+        if (arr == null || arr.length == 0) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < arr.length; i++) {
+            if (i > 0) sb.append(",");
+            sb.append(arr[i]);
+        }
+        return sb.toString();
     }
 }

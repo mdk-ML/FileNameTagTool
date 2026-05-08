@@ -1,6 +1,9 @@
 package cn.mdkml.filenametagtool.util;
 
 import cn.mdkml.filenametagtool.component.BadgeToggleButton;
+import cn.mdkml.filenametagtool.component.FileTableModel;
+import cn.mdkml.filenametagtool.component.HighlightCellRenderer;
+import cn.mdkml.filenametagtool.component.SortableHeaderRenderer;
 import cn.mdkml.filenametagtool.component.WrapLayout;
 import cn.mdkml.filenametagtool.model.Config;
 import cn.mdkml.filenametagtool.model.SearchResult;
@@ -626,11 +629,10 @@ public final class SwingUtil {
         leftSplit.setBackground(BG_CONTENT);
         leftSplit.setBorder(null);
 
-        // ==================== 右侧上部：当前目录文件模块（含搜索） ====================
+        // ==================== 右侧上部：当前目录文件模块（含搜索和排序） ====================
         File currentDir = new File(path);
         File[] files = currentDir.listFiles();
 
-        // 收集所有文件
         final List<File> allFiles = new ArrayList<>();
         if (files != null) {
             for (File file : files) {
@@ -640,11 +642,96 @@ public final class SwingUtil {
             }
         }
 
-        JPanel filesPanel = new JPanel();
-        filesPanel.setLayout(new BoxLayout(filesPanel, BoxLayout.Y_AXIS));
-        filesPanel.setBackground(BG_CONTENT);
+        // 文件表格模型
+        FileTableModel tableModel = new FileTableModel();
+        tableModel.setFiles(allFiles);
+        tableModel.setSort(Config.fileSortColumn, Config.fileSortAscending);
 
-        final List<JToggleButton> fileButtons = new ArrayList<>();
+        JTable fileTable = new JTable(tableModel);
+        fileTable.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        fileTable.setRowHeight(28);
+        fileTable.setShowGrid(false);
+        fileTable.setIntercellSpacing(new Dimension(0, 0));
+        fileTable.setBackground(BG_CONTENT);
+        fileTable.setSelectionBackground(new Color(200, 220, 240));
+        fileTable.setSelectionForeground(Color.BLACK);
+        fileTable.setFocusable(false);
+        fileTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+        fileTable.getTableHeader().setReorderingAllowed(false);
+
+        // 搜索高亮渲染器
+        HighlightCellRenderer highlightRenderer = new HighlightCellRenderer();
+        for (int i = 0; i < fileTable.getColumnCount(); i++) {
+            fileTable.getColumnModel().getColumn(i).setCellRenderer(highlightRenderer);
+        }
+
+        // 列宽设置（从配置恢复）
+        fileTable.getColumnModel().getColumn(0).setPreferredWidth(Config.fileColumnWidths[0]);
+        fileTable.getColumnModel().getColumn(1).setPreferredWidth(Config.fileColumnWidths[1]);
+        fileTable.getColumnModel().getColumn(2).setPreferredWidth(Config.fileColumnWidths[2]);
+        fileTable.getColumnModel().getColumn(3).setPreferredWidth(Config.fileColumnWidths[3]);
+
+        // 列宽拖拽保存
+        fileTable.getColumnModel().addColumnModelListener(new javax.swing.event.TableColumnModelListener() {
+            @Override public void columnAdded(javax.swing.event.TableColumnModelEvent e) {}
+            @Override public void columnRemoved(javax.swing.event.TableColumnModelEvent e) {}
+            @Override public void columnMoved(javax.swing.event.TableColumnModelEvent e) {}
+            @Override public void columnMarginChanged(javax.swing.event.ChangeEvent e) {
+                for (int i = 0; i < fileTable.getColumnCount(); i++) {
+                    Config.fileColumnWidths[i] = fileTable.getColumnModel().getColumn(i).getWidth();
+                }
+                ConfigUtil.save();
+            }
+            @Override public void columnSelectionChanged(javax.swing.event.ListSelectionEvent e) {}
+        });
+
+        // 自定义表头渲染器
+        SortableHeaderRenderer headerRenderer = new SortableHeaderRenderer();
+        headerRenderer.setSortState(Config.fileSortColumn, Config.fileSortAscending);
+        fileTable.getTableHeader().setDefaultRenderer(headerRenderer);
+
+        // 表头悬停效果
+        fileTable.getTableHeader().addMouseMotionListener(new MouseMotionAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                int col = fileTable.getTableHeader().columnAtPoint(e.getPoint());
+                headerRenderer.setHoverColumn(col);
+                fileTable.getTableHeader().repaint();
+            }
+        });
+        fileTable.getTableHeader().addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseExited(MouseEvent e) {
+                headerRenderer.setHoverColumn(-1);
+                fileTable.getTableHeader().repaint();
+            }
+        });
+
+        // 表头点击排序
+        fileTable.getTableHeader().addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                int col = fileTable.getTableHeader().columnAtPoint(e.getPoint());
+                if (col < 0) return;
+                boolean ascending;
+                if (col == tableModel.getSortColumn()) {
+                    ascending = !tableModel.isSortAscending();
+                } else {
+                    ascending = true;
+                }
+                tableModel.setSort(col, ascending);
+                headerRenderer.setSortState(col, ascending);
+                fileTable.getTableHeader().repaint();
+
+                Config.fileSortColumn = col;
+                Config.fileSortAscending = ascending;
+                ConfigUtil.save();
+            }
+        });
+
+        JScrollPane filesScroll = new JScrollPane(fileTable);
+        filesScroll.getVerticalScrollBar().setUnitIncrement(16);
+        filesScroll.setBackground(BG_CONTENT);
 
         // 搜索输入框（内嵌清除按钮和搜索图标）
         JLabel searchIconLabel = new JLabel(createSearchIcon());
@@ -672,7 +759,6 @@ public final class SwingUtil {
         clearButton.setMargin(new Insets(0, 0, 0, 0));
         clearButton.setToolTipText("清除搜索内容");
 
-        // 右侧区域：清除按钮 + 搜索图标
         JPanel searchRightPanel = new JPanel(new BorderLayout(0, 0));
         searchRightPanel.setOpaque(false);
         searchRightPanel.add(clearButton, BorderLayout.WEST);
@@ -692,17 +778,45 @@ public final class SwingUtil {
         searchFieldPanel.add(searchCenterPanel, BorderLayout.CENTER);
         searchFieldPanel.add(searchRightPanel, BorderLayout.EAST);
 
-        JLabel noResultLabel = new JLabel("没有匹配的文件");
-        noResultLabel.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
-        noResultLabel.setForeground(new Color(160, 160, 160));
-        noResultLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        noResultLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        noResultLabel.setVisible(false);
-
         // 原始边框标题
         final TitledBorder originalBorder = BorderFactory.createTitledBorder("当前目录文件");
-        // 用于在定时器中引用 JScrollPane 以刷新边框
-        final JScrollPane[] filesScrollHolder = new JScrollPane[1];
+
+        // 状态栏
+        JLabel statusBar = new JLabel();
+        statusBar.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 11));
+        statusBar.setForeground(new Color(100, 100, 100));
+        statusBar.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
+
+        // 更新状态栏方法
+        Runnable updateStatusBar = () -> {
+            int totalCount = tableModel.getMatchCount();
+            long totalSize = tableModel.getTotalSize();
+            int selCount = selectedFiles.size();
+            long selSize = 0;
+            for (File f : selectedFiles) {
+                selSize += f.length();
+            }
+            if (selCount == 0) {
+                statusBar.setText(totalCount + " 个项目 | " + formatFileSize(totalSize));
+            } else {
+                statusBar.setText(totalCount + " 个项目 | " + formatFileSize(totalSize)
+                        + " | 选中 " + selCount + " 个项目 | " + formatFileSize(selSize));
+            }
+        };
+        updateStatusBar.run();
+
+        // 表格选择同步到 selectedFiles
+        fileTable.getSelectionModel().addListSelectionListener(e -> {
+            if (e.getValueIsAdjusting()) return;
+            selectedFiles.clear();
+            int[] rows = fileTable.getSelectedRows();
+            for (int row : rows) {
+                int modelRow = fileTable.convertRowIndexToModel(row);
+                File f = tableModel.getFileAt(modelRow);
+                if (f != null) selectedFiles.add(f);
+            }
+            updateStatusBar.run();
+        });
 
         // 防抖定时器（300ms）
         Timer addTagSearchTimer = new Timer(300, e -> {
@@ -710,101 +824,20 @@ public final class SwingUtil {
             boolean isFiltering = !filterText.isEmpty();
             clearButton.setVisible(isFiltering);
 
-            filesPanel.removeAll();
-            fileButtons.clear();
-
             String[] keywords = isFiltering ? filterText.split("\\s+") : new String[0];
-            int matchCount = 0;
+            tableModel.setSearchKeywords(keywords);
+            highlightRenderer.setKeywords(keywords);
 
+            // 搜索时重置表头排序状态
             if (isFiltering) {
-                // 多关键词匹配 + 按相关度排序
-                List<Map.Entry<File, Integer>> scored = new ArrayList<>();
-                for (File file : allFiles) {
-                    if (matchesAllKeywords(file.getName(), keywords)) {
-                        scored.add(new AbstractMap.SimpleEntry<>(file, calculateRelevance(file.getName(), keywords)));
-                    }
-                }
-                scored.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
-                matchCount = scored.size();
-
-                for (Map.Entry<File, Integer> entry : scored) {
-                    File file = entry.getKey();
-                    final File currentFile = file;
-                    String htmlText = highlightKeywords(file.getName(), keywords);
-                    JToggleButton fileButton = new JToggleButton(htmlText);
-                    fileButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
-                    fileButton.setFocusPainted(false);
-                    fileButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-                    fileButton.setAlignmentX(Component.LEFT_ALIGNMENT);
-                    fileButton.setHorizontalAlignment(SwingConstants.LEFT);
-                    fileButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, fileButton.getPreferredSize().height));
-
-                    if (selectedFiles.contains(currentFile)) {
-                        fileButton.setSelected(true);
-                    }
-
-                    fileButton.addItemListener(ev -> {
-                        if (fileButton.isSelected()) {
-                            selectedFiles.add(currentFile);
-                        } else {
-                            selectedFiles.remove(currentFile);
-                        }
-                    });
-
-                    fileButtons.add(fileButton);
-                    filesPanel.add(fileButton);
-                    filesPanel.add(Box.createVerticalStrut(5));
-                }
+                headerRenderer.setSortState(-1, true);
             } else {
-                // 无搜索关键词，显示全部文件
-                for (File file : allFiles) {
-                    matchCount++;
-                    final File currentFile = file;
-                    JToggleButton fileButton = new JToggleButton(file.getName());
-                    fileButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
-                    fileButton.setFocusPainted(false);
-                    fileButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-                    fileButton.setAlignmentX(Component.LEFT_ALIGNMENT);
-                    fileButton.setHorizontalAlignment(SwingConstants.LEFT);
-                    fileButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, fileButton.getPreferredSize().height));
-
-                    if (selectedFiles.contains(currentFile)) {
-                        fileButton.setSelected(true);
-                    }
-
-                    fileButton.addItemListener(ev -> {
-                        if (fileButton.isSelected()) {
-                            selectedFiles.add(currentFile);
-                        } else {
-                            selectedFiles.remove(currentFile);
-                        }
-                    });
-
-                    fileButtons.add(fileButton);
-                    filesPanel.add(fileButton);
-                    filesPanel.add(Box.createVerticalStrut(5));
-                }
+                headerRenderer.setSortState(Config.fileSortColumn, Config.fileSortAscending);
             }
+            fileTable.getTableHeader().repaint();
 
-            noResultLabel.setVisible(isFiltering && matchCount == 0);
-            if (isFiltering && matchCount == 0) {
-                filesPanel.add(noResultLabel);
-            }
-
-            // 更新边框标题，提示搜索状态
-            if (isFiltering) {
-                originalBorder.setTitle("当前目录文件（搜索中 - " + matchCount + " 个匹配）");
-            } else {
-                originalBorder.setTitle("当前目录文件");
-            }
-            filesPanel.revalidate();
-            filesPanel.repaint();
-            // 刷新 JScrollPane 以立即显示更新后的边框标题
-            if (filesScrollHolder[0] != null) {
-                filesScrollHolder[0].repaint();
-            }
-
-            enableRangeSelection(fileButtons);
+            updateStatusBar.run();
+            filesScroll.repaint();
         });
         addTagSearchTimer.setRepeats(false);
 
@@ -832,7 +865,7 @@ public final class SwingUtil {
             }
         });
 
-        // 键盘支持：Enter 触发搜索，Esc 清除
+        // 键盘支持：Esc 清除
         searchField.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
@@ -861,36 +894,12 @@ public final class SwingUtil {
         searchPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
         searchPanel.add(searchFieldPanel, BorderLayout.CENTER);
 
-        // 文件容器：搜索框 + 文件列表
+        // 文件容器：搜索框 + 表格 + 状态栏
         JPanel filesContainer = new JPanel(new BorderLayout());
         filesContainer.setBackground(BG_CONTENT);
         filesContainer.add(searchPanel, BorderLayout.NORTH);
-        filesContainer.add(filesPanel, BorderLayout.CENTER);
-
-        // 初始加载所有文件
-        for (File file : allFiles) {
-            final File currentFile = file;
-            JToggleButton fileButton = new JToggleButton(file.getName());
-            fileButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
-            fileButton.setFocusPainted(false);
-            fileButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-            fileButton.setAlignmentX(Component.LEFT_ALIGNMENT);
-            fileButton.setHorizontalAlignment(SwingConstants.LEFT);
-            fileButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, fileButton.getPreferredSize().height));
-
-            fileButton.addItemListener(e -> {
-                if (fileButton.isSelected()) {
-                    selectedFiles.add(currentFile);
-                } else {
-                    selectedFiles.remove(currentFile);
-                }
-            });
-
-            fileButtons.add(fileButton);
-            filesPanel.add(fileButton);
-            filesPanel.add(Box.createVerticalStrut(5));
-        }
-        enableRangeSelection(fileButtons);
+        filesContainer.add(filesScroll, BorderLayout.CENTER);
+        filesContainer.add(statusBar, BorderLayout.SOUTH);
 
         // 自动选中指定的文件
         if (filesToSelect != null && !filesToSelect.isEmpty()) {
@@ -901,19 +910,15 @@ public final class SwingUtil {
                     selectNames.add(fn.toString());
                 }
             }
-
-            for (JToggleButton fileButton : fileButtons) {
-                if (selectNames.contains(fileButton.getText())) {
-                    fileButton.setSelected(true);
+            for (int i = 0; i < tableModel.getRowCount(); i++) {
+                if (selectNames.contains(tableModel.getValueAt(i, 0))) {
+                    int viewRow = fileTable.convertRowIndexToView(i);
+                    if (viewRow >= 0) fileTable.addRowSelectionInterval(viewRow, viewRow);
                 }
             }
         }
 
-        JScrollPane filesScroll = new JScrollPane(filesContainer);
-        filesScroll.getVerticalScrollBar().setUnitIncrement(16);
-        filesScroll.setBackground(BG_CONTENT);
         filesScroll.setBorder(originalBorder);
-        filesScrollHolder[0] = filesScroll;
 
         // ==================== 右侧下部：自定义标签输入模块 ====================
         String placeholderText = "输入自定义标签，多个标签请用空格分隔，例如：紧急任务 Q2季度报告 客户反馈";
@@ -950,7 +955,7 @@ public final class SwingUtil {
 
         // ==================== 嵌套 JSplitPane 实现三区域可拖拽 ====================
         // 右侧上下分隔：文件列表 / 自定义标签输入
-        JSplitPane rightSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, filesScroll, inputScroll);
+        JSplitPane rightSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, filesContainer, inputScroll);
         rightSplit.setResizeWeight(0.7);
         rightSplit.setBackground(BG_CONTENT);
         rightSplit.setBorder(null);
@@ -1190,12 +1195,96 @@ public final class SwingUtil {
         tagsScroll.setBackground(BG_CONTENT);
         tagsScroll.setBorder(BorderFactory.createTitledBorder("文件标签"));
 
-        // ==================== 右侧：有标签的文件列表模块（含搜索） ====================
-        JPanel filesPanel = new JPanel();
-        filesPanel.setLayout(new BoxLayout(filesPanel, BoxLayout.Y_AXIS));
-        filesPanel.setBackground(BG_CONTENT);
+        // ==================== 右侧：有标签的文件列表模块（含搜索和排序） ====================
+        FileTableModel tableModel = new FileTableModel();
+        tableModel.setFiles(taggedFiles);
+        tableModel.setSort(Config.fileSortColumn, Config.fileSortAscending);
 
-        final List<JToggleButton> fileButtons = new ArrayList<>();
+        JTable fileTable = new JTable(tableModel);
+        fileTable.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        fileTable.setRowHeight(28);
+        fileTable.setShowGrid(false);
+        fileTable.setIntercellSpacing(new Dimension(0, 0));
+        fileTable.setBackground(BG_CONTENT);
+        fileTable.setSelectionBackground(new Color(200, 220, 240));
+        fileTable.setSelectionForeground(Color.BLACK);
+        fileTable.setFocusable(false);
+        fileTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+        fileTable.getTableHeader().setReorderingAllowed(false);
+
+        // 搜索高亮渲染器
+        HighlightCellRenderer highlightRenderer = new HighlightCellRenderer();
+        for (int i = 0; i < fileTable.getColumnCount(); i++) {
+            fileTable.getColumnModel().getColumn(i).setCellRenderer(highlightRenderer);
+        }
+
+        // 列宽设置（从配置恢复）
+        fileTable.getColumnModel().getColumn(0).setPreferredWidth(Config.fileColumnWidths[0]);
+        fileTable.getColumnModel().getColumn(1).setPreferredWidth(Config.fileColumnWidths[1]);
+        fileTable.getColumnModel().getColumn(2).setPreferredWidth(Config.fileColumnWidths[2]);
+        fileTable.getColumnModel().getColumn(3).setPreferredWidth(Config.fileColumnWidths[3]);
+
+        // 列宽拖拽保存
+        fileTable.getColumnModel().addColumnModelListener(new javax.swing.event.TableColumnModelListener() {
+            @Override public void columnAdded(javax.swing.event.TableColumnModelEvent e) {}
+            @Override public void columnRemoved(javax.swing.event.TableColumnModelEvent e) {}
+            @Override public void columnMoved(javax.swing.event.TableColumnModelEvent e) {}
+            @Override public void columnMarginChanged(javax.swing.event.ChangeEvent e) {
+                for (int i = 0; i < fileTable.getColumnCount(); i++) {
+                    Config.fileColumnWidths[i] = fileTable.getColumnModel().getColumn(i).getWidth();
+                }
+                ConfigUtil.save();
+            }
+            @Override public void columnSelectionChanged(javax.swing.event.ListSelectionEvent e) {}
+        });
+
+        // 自定义表头渲染器
+        SortableHeaderRenderer headerRenderer = new SortableHeaderRenderer();
+        headerRenderer.setSortState(Config.fileSortColumn, Config.fileSortAscending);
+        fileTable.getTableHeader().setDefaultRenderer(headerRenderer);
+
+        // 表头悬停效果
+        fileTable.getTableHeader().addMouseMotionListener(new MouseMotionAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                int col = fileTable.getTableHeader().columnAtPoint(e.getPoint());
+                headerRenderer.setHoverColumn(col);
+                fileTable.getTableHeader().repaint();
+            }
+        });
+        fileTable.getTableHeader().addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseExited(MouseEvent e) {
+                headerRenderer.setHoverColumn(-1);
+                fileTable.getTableHeader().repaint();
+            }
+        });
+
+        // 表头点击排序
+        fileTable.getTableHeader().addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                int col = fileTable.getTableHeader().columnAtPoint(e.getPoint());
+                if (col < 0) return;
+                boolean ascending;
+                if (col == tableModel.getSortColumn()) {
+                    ascending = !tableModel.isSortAscending();
+                } else {
+                    ascending = true;
+                }
+                tableModel.setSort(col, ascending);
+                headerRenderer.setSortState(col, ascending);
+                fileTable.getTableHeader().repaint();
+
+                Config.fileSortColumn = col;
+                Config.fileSortAscending = ascending;
+                ConfigUtil.save();
+            }
+        });
+
+        JScrollPane filesScroll = new JScrollPane(fileTable);
+        filesScroll.getVerticalScrollBar().setUnitIncrement(16);
+        filesScroll.setBackground(BG_CONTENT);
 
         // 搜索输入框（内嵌清除按钮和搜索图标）
         JLabel removeSearchIconLabel = new JLabel(createSearchIcon());
@@ -1223,7 +1312,6 @@ public final class SwingUtil {
         removeClearButton.setMargin(new Insets(0, 0, 0, 0));
         removeClearButton.setToolTipText("清除搜索内容");
 
-        // 右侧区域：清除按钮 + 搜索图标
         JPanel removeSearchRightPanel = new JPanel(new BorderLayout(0, 0));
         removeSearchRightPanel.setOpaque(false);
         removeSearchRightPanel.add(removeClearButton, BorderLayout.WEST);
@@ -1243,17 +1331,45 @@ public final class SwingUtil {
         removeSearchFieldPanel.add(removeSearchCenterPanel, BorderLayout.CENTER);
         removeSearchFieldPanel.add(removeSearchRightPanel, BorderLayout.EAST);
 
-        JLabel removeNoResultLabel = new JLabel("没有匹配的文件");
-        removeNoResultLabel.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
-        removeNoResultLabel.setForeground(new Color(160, 160, 160));
-        removeNoResultLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        removeNoResultLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        removeNoResultLabel.setVisible(false);
-
         // 原始边框标题
         final TitledBorder removeOriginalBorder = BorderFactory.createTitledBorder("有标签的文件");
-        // 用于在定时器中引用 JScrollPane 以刷新边框
-        final JScrollPane[] removeFilesScrollHolder = new JScrollPane[1];
+
+        // 状态栏
+        JLabel removeStatusBar = new JLabel();
+        removeStatusBar.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 11));
+        removeStatusBar.setForeground(new Color(100, 100, 100));
+        removeStatusBar.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
+
+        // 更新状态栏方法
+        Runnable updateRemoveStatusBar = () -> {
+            int totalCount = tableModel.getMatchCount();
+            long totalSize = tableModel.getTotalSize();
+            int selCount = selectedFiles.size();
+            long selSize = 0;
+            for (File f : selectedFiles) {
+                selSize += f.length();
+            }
+            if (selCount == 0) {
+                removeStatusBar.setText(totalCount + " 个项目 | " + formatFileSize(totalSize));
+            } else {
+                removeStatusBar.setText(totalCount + " 个项目 | " + formatFileSize(totalSize)
+                        + " | 选中 " + selCount + " 个项目 | " + formatFileSize(selSize));
+            }
+        };
+        updateRemoveStatusBar.run();
+
+        // 表格选择同步到 selectedFiles
+        fileTable.getSelectionModel().addListSelectionListener(e -> {
+            if (e.getValueIsAdjusting()) return;
+            selectedFiles.clear();
+            int[] rows = fileTable.getSelectedRows();
+            for (int row : rows) {
+                int modelRow = fileTable.convertRowIndexToModel(row);
+                File f = tableModel.getFileAt(modelRow);
+                if (f != null) selectedFiles.add(f);
+            }
+            updateRemoveStatusBar.run();
+        });
 
         // 防抖定时器（300ms）
         Timer removeSearchTimer = new Timer(300, e -> {
@@ -1261,101 +1377,20 @@ public final class SwingUtil {
             boolean isFiltering = !filterText.isEmpty();
             removeClearButton.setVisible(isFiltering);
 
-            filesPanel.removeAll();
-            fileButtons.clear();
-
             String[] keywords = isFiltering ? filterText.split("\\s+") : new String[0];
-            int matchCount = 0;
+            tableModel.setSearchKeywords(keywords);
+            highlightRenderer.setKeywords(keywords);
 
+            // 搜索时重置表头排序状态
             if (isFiltering) {
-                // 多关键词匹配 + 按相关度排序
-                List<Map.Entry<File, Integer>> scored = new ArrayList<>();
-                for (File file : taggedFiles) {
-                    if (matchesAllKeywords(file.getName(), keywords)) {
-                        scored.add(new AbstractMap.SimpleEntry<>(file, calculateRelevance(file.getName(), keywords)));
-                    }
-                }
-                scored.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
-                matchCount = scored.size();
-
-                for (Map.Entry<File, Integer> entry : scored) {
-                    File file = entry.getKey();
-                    final File currentFile = file;
-                    String htmlText = highlightKeywords(file.getName(), keywords);
-                    JToggleButton fileButton = new JToggleButton(htmlText);
-                    fileButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
-                    fileButton.setFocusPainted(false);
-                    fileButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-                    fileButton.setAlignmentX(Component.LEFT_ALIGNMENT);
-                    fileButton.setHorizontalAlignment(SwingConstants.LEFT);
-                    fileButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, fileButton.getPreferredSize().height));
-
-                    if (selectedFiles.contains(currentFile)) {
-                        fileButton.setSelected(true);
-                    }
-
-                    fileButton.addItemListener(ev -> {
-                        if (fileButton.isSelected()) {
-                            selectedFiles.add(currentFile);
-                        } else {
-                            selectedFiles.remove(currentFile);
-                        }
-                    });
-
-                    fileButtons.add(fileButton);
-                    filesPanel.add(fileButton);
-                    filesPanel.add(Box.createVerticalStrut(5));
-                }
+                headerRenderer.setSortState(-1, true);
             } else {
-                // 无搜索关键词，显示全部有标签的文件
-                for (File file : taggedFiles) {
-                    matchCount++;
-                    final File currentFile = file;
-                    JToggleButton fileButton = new JToggleButton(file.getName());
-                    fileButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
-                    fileButton.setFocusPainted(false);
-                    fileButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-                    fileButton.setAlignmentX(Component.LEFT_ALIGNMENT);
-                    fileButton.setHorizontalAlignment(SwingConstants.LEFT);
-                    fileButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, fileButton.getPreferredSize().height));
-
-                    if (selectedFiles.contains(currentFile)) {
-                        fileButton.setSelected(true);
-                    }
-
-                    fileButton.addItemListener(ev -> {
-                        if (fileButton.isSelected()) {
-                            selectedFiles.add(currentFile);
-                        } else {
-                            selectedFiles.remove(currentFile);
-                        }
-                    });
-
-                    fileButtons.add(fileButton);
-                    filesPanel.add(fileButton);
-                    filesPanel.add(Box.createVerticalStrut(5));
-                }
+                headerRenderer.setSortState(Config.fileSortColumn, Config.fileSortAscending);
             }
+            fileTable.getTableHeader().repaint();
 
-            removeNoResultLabel.setVisible(isFiltering && matchCount == 0);
-            if (isFiltering && matchCount == 0) {
-                filesPanel.add(removeNoResultLabel);
-            }
-
-            // 更新边框标题，提示搜索状态
-            if (isFiltering) {
-                removeOriginalBorder.setTitle("有标签的文件（搜索中 - " + matchCount + " 个匹配）");
-            } else {
-                removeOriginalBorder.setTitle("有标签的文件");
-            }
-            filesPanel.revalidate();
-            filesPanel.repaint();
-            // 刷新 JScrollPane 以立即显示更新后的边框标题
-            if (removeFilesScrollHolder[0] != null) {
-                removeFilesScrollHolder[0].repaint();
-            }
-
-            enableRangeSelection(fileButtons);
+            updateRemoveStatusBar.run();
+            filesScroll.repaint();
         });
         removeSearchTimer.setRepeats(false);
 
@@ -1383,7 +1418,7 @@ public final class SwingUtil {
             }
         });
 
-        // 键盘支持：Enter 触发搜索，Esc 清除
+        // 键盘支持：Esc 清除
         removeSearchField.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
@@ -1412,36 +1447,12 @@ public final class SwingUtil {
         removeSearchPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
         removeSearchPanel.add(removeSearchFieldPanel, BorderLayout.CENTER);
 
-        // 文件容器：搜索框 + 文件列表
+        // 文件容器：搜索框 + 表格 + 状态栏
         JPanel filesContainer = new JPanel(new BorderLayout());
         filesContainer.setBackground(BG_CONTENT);
         filesContainer.add(removeSearchPanel, BorderLayout.NORTH);
-        filesContainer.add(filesPanel, BorderLayout.CENTER);
-
-        // 初始加载所有有标签的文件
-        for (File file : taggedFiles) {
-            final File currentFile = file;
-            JToggleButton fileButton = new JToggleButton(file.getName());
-            fileButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
-            fileButton.setFocusPainted(false);
-            fileButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-            fileButton.setAlignmentX(Component.LEFT_ALIGNMENT);
-            fileButton.setHorizontalAlignment(SwingConstants.LEFT);
-            fileButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, fileButton.getPreferredSize().height));
-
-            fileButton.addItemListener(e -> {
-                if (fileButton.isSelected()) {
-                    selectedFiles.add(currentFile);
-                } else {
-                    selectedFiles.remove(currentFile);
-                }
-            });
-
-            fileButtons.add(fileButton);
-            filesPanel.add(fileButton);
-            filesPanel.add(Box.createVerticalStrut(5));
-        }
-        enableRangeSelection(fileButtons);
+        filesContainer.add(filesScroll, BorderLayout.CENTER);
+        filesContainer.add(removeStatusBar, BorderLayout.SOUTH);
 
         // 自动选中指定的文件
         if (filesToSelect != null && !filesToSelect.isEmpty()) {
@@ -1452,21 +1463,18 @@ public final class SwingUtil {
                     selectNames.add(fn.toString());
                 }
             }
-            for (JToggleButton fileButton : fileButtons) {
-                if (selectNames.contains(fileButton.getText())) {
-                    fileButton.setSelected(true);
+            for (int i = 0; i < tableModel.getRowCount(); i++) {
+                if (selectNames.contains(tableModel.getValueAt(i, 0))) {
+                    int viewRow = fileTable.convertRowIndexToView(i);
+                    if (viewRow >= 0) fileTable.addRowSelectionInterval(viewRow, viewRow);
                 }
             }
         }
 
-        JScrollPane filesScroll = new JScrollPane(filesContainer);
-        filesScroll.getVerticalScrollBar().setUnitIncrement(16);
-        filesScroll.setBackground(BG_CONTENT);
         filesScroll.setBorder(removeOriginalBorder);
-        removeFilesScrollHolder[0] = filesScroll;
 
         // ==================== JSplitPane 实现左右可拖拽 ====================
-        JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, tagsScroll, filesScroll);
+        JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, tagsScroll, filesContainer);
         mainSplit.setResizeWeight(0.3);
         mainSplit.setBackground(BG_CONTENT);
         mainSplit.setBorder(null);
@@ -2074,6 +2082,19 @@ public final class SwingUtil {
             @Override
             public int getIconHeight() { return 17; }
         };
+    }
+
+    /**
+     * 格式化文件大小为可读字符串
+     *
+     * @param bytes 字节数
+     * @return 格式化后的字符串
+     */
+    private static String formatFileSize(long bytes) {
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
+        if (bytes < 1024 * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024));
+        return String.format("%.2f GB", bytes / (1024.0 * 1024 * 1024));
     }
 
     /**

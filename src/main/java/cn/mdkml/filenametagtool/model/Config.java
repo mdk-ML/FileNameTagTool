@@ -31,6 +31,12 @@ public class Config {
     public static final String STYLE_FULLWIDTH = "fullwidth";
     /** 半角方括号样式 [] */
     public static final String STYLE_BRACKET = "bracket";
+    /** 文件列表排序列索引（0=名称, 1=修改日期, 2=类型, 3=大小） */
+    public static final String KEY_FILE_SORT_COLUMN = "file.sort.column";
+    /** 文件列表排序方向（0=升序, 1=降序） */
+    public static final String KEY_FILE_SORT_ASCENDING = "file.sort.ascending";
+    /** 文件列表各列宽度（逗号分隔：名称,修改日期,类型,大小） */
+    public static final String KEY_FILE_COLUMN_WIDTHS = "file.column.widths";
 
     public static int windowX = 0;
     public static int windowY = 0;
@@ -52,6 +58,12 @@ public class Config {
     public static int addTagSmartHistoryDivider = 0;
     /** 标签包裹符号样式 */
     public static String tagBracketStyle = STYLE_FULLWIDTH;
+    /** 文件列表排序列索引（0=名称, 1=修改日期, 2=类型, 3=大小） */
+    public static int fileSortColumn = 0;
+    /** 文件列表排序方向（true=升序, false=降序） */
+    public static boolean fileSortAscending = true;
+    /** 文件列表各列宽度（名称,修改日期,类型,大小） */
+    public static int[] fileColumnWidths = {250, 140, 80, 80};
 
     /**
      * 获取当前标签左包裹符号
