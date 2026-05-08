@@ -7,7 +7,10 @@ import cn.mdkml.filenametagtool.model.SearchResult;
 import cn.mdkml.filenametagtool.model.TabIndex;
 
 import javax.swing.*;
+import javax.swing.Timer;
 import javax.swing.border.TitledBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
@@ -623,18 +626,139 @@ public final class SwingUtil {
         leftSplit.setBackground(BG_CONTENT);
         leftSplit.setBorder(null);
 
-        // ==================== 右侧上部：当前目录文件模块 ====================
+        // ==================== 右侧上部：当前目录文件模块（含搜索） ====================
         File currentDir = new File(path);
         File[] files = currentDir.listFiles();
+
+        // 收集所有文件
+        final List<File> allFiles = new ArrayList<>();
+        if (files != null) {
+            for (File file : files) {
+                if (file.isFile()) {
+                    allFiles.add(file);
+                }
+            }
+        }
 
         JPanel filesPanel = new JPanel();
         filesPanel.setLayout(new BoxLayout(filesPanel, BoxLayout.Y_AXIS));
         filesPanel.setBackground(BG_CONTENT);
 
         final List<JToggleButton> fileButtons = new ArrayList<>();
-        if (files != null) {
-            for (File file : files) {
-                if (file.isFile()) {
+
+        // 搜索输入框（内嵌清除按钮和搜索图标）
+        JLabel searchIconLabel = new JLabel(createSearchIcon());
+        searchIconLabel.setBorder(BorderFactory.createEmptyBorder(0, 4, 0, 6));
+        searchIconLabel.setOpaque(false);
+
+        JTextField searchField = new JTextField();
+        searchField.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        searchField.setToolTipText("输入文件名进行搜索，支持中英文及特殊字符（Enter 搜索，Esc 清除）");
+        searchField.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 2));
+
+        JLabel searchPlaceholder = new JLabel("搜索文件...");
+        searchPlaceholder.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        searchPlaceholder.setForeground(new Color(160, 160, 160));
+        searchPlaceholder.setOpaque(false);
+
+        JButton clearButton = new JButton("\u00d7");
+        clearButton.setFont(new Font("Microsoft YaHei UI", Font.BOLD, 14));
+        clearButton.setPreferredSize(new Dimension(26, 26));
+        clearButton.setFocusPainted(false);
+        clearButton.setContentAreaFilled(false);
+        clearButton.setBorderPainted(false);
+        clearButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        clearButton.setVisible(false);
+        clearButton.setMargin(new Insets(0, 0, 0, 0));
+        clearButton.setToolTipText("清除搜索内容");
+
+        // 右侧区域：清除按钮 + 搜索图标
+        JPanel searchRightPanel = new JPanel(new BorderLayout(0, 0));
+        searchRightPanel.setOpaque(false);
+        searchRightPanel.add(clearButton, BorderLayout.WEST);
+        searchRightPanel.add(searchIconLabel, BorderLayout.EAST);
+
+        JPanel searchFieldPanel = new JPanel(new BorderLayout(0, 0));
+        searchFieldPanel.setBackground(Color.WHITE);
+        searchFieldPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_GRAY, 1, true),
+                BorderFactory.createEmptyBorder(0, 0, 0, 0)
+        ));
+
+        JPanel searchCenterPanel = new JPanel(new BorderLayout());
+        searchCenterPanel.setOpaque(false);
+        searchCenterPanel.add(searchField, BorderLayout.CENTER);
+        searchCenterPanel.add(searchPlaceholder, BorderLayout.WEST);
+        searchFieldPanel.add(searchCenterPanel, BorderLayout.CENTER);
+        searchFieldPanel.add(searchRightPanel, BorderLayout.EAST);
+
+        JLabel noResultLabel = new JLabel("没有匹配的文件");
+        noResultLabel.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        noResultLabel.setForeground(new Color(160, 160, 160));
+        noResultLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        noResultLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        noResultLabel.setVisible(false);
+
+        // 原始边框标题
+        final TitledBorder originalBorder = BorderFactory.createTitledBorder("当前目录文件");
+        // 用于在定时器中引用 JScrollPane 以刷新边框
+        final JScrollPane[] filesScrollHolder = new JScrollPane[1];
+
+        // 防抖定时器（300ms）
+        Timer addTagSearchTimer = new Timer(300, e -> {
+            String filterText = searchField.getText().trim();
+            boolean isFiltering = !filterText.isEmpty();
+            clearButton.setVisible(isFiltering);
+
+            filesPanel.removeAll();
+            fileButtons.clear();
+
+            String[] keywords = isFiltering ? filterText.split("\\s+") : new String[0];
+            int matchCount = 0;
+
+            if (isFiltering) {
+                // 多关键词匹配 + 按相关度排序
+                List<Map.Entry<File, Integer>> scored = new ArrayList<>();
+                for (File file : allFiles) {
+                    if (matchesAllKeywords(file.getName(), keywords)) {
+                        scored.add(new AbstractMap.SimpleEntry<>(file, calculateRelevance(file.getName(), keywords)));
+                    }
+                }
+                scored.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
+                matchCount = scored.size();
+
+                for (Map.Entry<File, Integer> entry : scored) {
+                    File file = entry.getKey();
+                    final File currentFile = file;
+                    String htmlText = highlightKeywords(file.getName(), keywords);
+                    JToggleButton fileButton = new JToggleButton(htmlText);
+                    fileButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+                    fileButton.setFocusPainted(false);
+                    fileButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+                    fileButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+                    fileButton.setHorizontalAlignment(SwingConstants.LEFT);
+                    fileButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, fileButton.getPreferredSize().height));
+
+                    if (selectedFiles.contains(currentFile)) {
+                        fileButton.setSelected(true);
+                    }
+
+                    fileButton.addItemListener(ev -> {
+                        if (fileButton.isSelected()) {
+                            selectedFiles.add(currentFile);
+                        } else {
+                            selectedFiles.remove(currentFile);
+                        }
+                    });
+
+                    fileButtons.add(fileButton);
+                    filesPanel.add(fileButton);
+                    filesPanel.add(Box.createVerticalStrut(5));
+                }
+            } else {
+                // 无搜索关键词，显示全部文件
+                for (File file : allFiles) {
+                    matchCount++;
                     final File currentFile = file;
                     JToggleButton fileButton = new JToggleButton(file.getName());
                     fileButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
@@ -644,7 +768,11 @@ public final class SwingUtil {
                     fileButton.setHorizontalAlignment(SwingConstants.LEFT);
                     fileButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, fileButton.getPreferredSize().height));
 
-                    fileButton.addItemListener(e -> {
+                    if (selectedFiles.contains(currentFile)) {
+                        fileButton.setSelected(true);
+                    }
+
+                    fileButton.addItemListener(ev -> {
                         if (fileButton.isSelected()) {
                             selectedFiles.add(currentFile);
                         } else {
@@ -657,6 +785,110 @@ public final class SwingUtil {
                     filesPanel.add(Box.createVerticalStrut(5));
                 }
             }
+
+            noResultLabel.setVisible(isFiltering && matchCount == 0);
+            if (isFiltering && matchCount == 0) {
+                filesPanel.add(noResultLabel);
+            }
+
+            // 更新边框标题，提示搜索状态
+            if (isFiltering) {
+                originalBorder.setTitle("当前目录文件（搜索中 - " + matchCount + " 个匹配）");
+            } else {
+                originalBorder.setTitle("当前目录文件");
+            }
+            filesPanel.revalidate();
+            filesPanel.repaint();
+            // 刷新 JScrollPane 以立即显示更新后的边框标题
+            if (filesScrollHolder[0] != null) {
+                filesScrollHolder[0].repaint();
+            }
+
+            enableRangeSelection(fileButtons);
+        });
+        addTagSearchTimer.setRepeats(false);
+
+        // 实时监听输入
+        searchField.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                searchPlaceholder.setVisible(false);
+                clearButton.setVisible(true);
+                addTagSearchTimer.restart();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                if (searchField.getText().isEmpty()) {
+                    clearButton.setVisible(false);
+                    searchPlaceholder.setVisible(true);
+                }
+                addTagSearchTimer.restart();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                addTagSearchTimer.restart();
+            }
+        });
+
+        // 键盘支持：Enter 触发搜索，Esc 清除
+        searchField.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+                    searchField.setText("");
+                    clearButton.setVisible(false);
+                    searchPlaceholder.setVisible(true);
+                    searchField.requestFocusInWindow();
+                    addTagSearchTimer.restart();
+                }
+            }
+        });
+
+        // 清除按钮
+        clearButton.addActionListener(e -> {
+            searchField.setText("");
+            clearButton.setVisible(false);
+            searchPlaceholder.setVisible(true);
+            searchField.requestFocusInWindow();
+            addTagSearchTimer.restart();
+        });
+
+        // 搜索面板包装
+        JPanel searchPanel = new JPanel(new BorderLayout(0, 0));
+        searchPanel.setBackground(BG_CONTENT);
+        searchPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        searchPanel.add(searchFieldPanel, BorderLayout.CENTER);
+
+        // 文件容器：搜索框 + 文件列表
+        JPanel filesContainer = new JPanel(new BorderLayout());
+        filesContainer.setBackground(BG_CONTENT);
+        filesContainer.add(searchPanel, BorderLayout.NORTH);
+        filesContainer.add(filesPanel, BorderLayout.CENTER);
+
+        // 初始加载所有文件
+        for (File file : allFiles) {
+            final File currentFile = file;
+            JToggleButton fileButton = new JToggleButton(file.getName());
+            fileButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+            fileButton.setFocusPainted(false);
+            fileButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            fileButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+            fileButton.setHorizontalAlignment(SwingConstants.LEFT);
+            fileButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, fileButton.getPreferredSize().height));
+
+            fileButton.addItemListener(e -> {
+                if (fileButton.isSelected()) {
+                    selectedFiles.add(currentFile);
+                } else {
+                    selectedFiles.remove(currentFile);
+                }
+            });
+
+            fileButtons.add(fileButton);
+            filesPanel.add(fileButton);
+            filesPanel.add(Box.createVerticalStrut(5));
         }
         enableRangeSelection(fileButtons);
 
@@ -677,10 +909,11 @@ public final class SwingUtil {
             }
         }
 
-        JScrollPane filesScroll = new JScrollPane(filesPanel);
+        JScrollPane filesScroll = new JScrollPane(filesContainer);
         filesScroll.getVerticalScrollBar().setUnitIncrement(16);
         filesScroll.setBackground(BG_CONTENT);
-        filesScroll.setBorder(BorderFactory.createTitledBorder("当前目录文件"));
+        filesScroll.setBorder(originalBorder);
+        filesScrollHolder[0] = filesScroll;
 
         // ==================== 右侧下部：自定义标签输入模块 ====================
         String placeholderText = "输入自定义标签，多个标签请用空格分隔，例如：紧急任务 Q2季度报告 客户反馈";
@@ -957,12 +1190,235 @@ public final class SwingUtil {
         tagsScroll.setBackground(BG_CONTENT);
         tagsScroll.setBorder(BorderFactory.createTitledBorder("文件标签"));
 
-        // ==================== 右侧：有标签的文件列表模块 ====================
+        // ==================== 右侧：有标签的文件列表模块（含搜索） ====================
         JPanel filesPanel = new JPanel();
         filesPanel.setLayout(new BoxLayout(filesPanel, BoxLayout.Y_AXIS));
         filesPanel.setBackground(BG_CONTENT);
 
         final List<JToggleButton> fileButtons = new ArrayList<>();
+
+        // 搜索输入框（内嵌清除按钮和搜索图标）
+        JLabel removeSearchIconLabel = new JLabel(createSearchIcon());
+        removeSearchIconLabel.setBorder(BorderFactory.createEmptyBorder(0, 4, 0, 6));
+        removeSearchIconLabel.setOpaque(false);
+
+        JTextField removeSearchField = new JTextField();
+        removeSearchField.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        removeSearchField.setToolTipText("输入文件名进行搜索，支持中英文及特殊字符（Enter 搜索，Esc 清除）");
+        removeSearchField.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 2));
+
+        JLabel removeSearchPlaceholder = new JLabel("搜索文件...");
+        removeSearchPlaceholder.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        removeSearchPlaceholder.setForeground(new Color(160, 160, 160));
+        removeSearchPlaceholder.setOpaque(false);
+
+        JButton removeClearButton = new JButton("\u00d7");
+        removeClearButton.setFont(new Font("Microsoft YaHei UI", Font.BOLD, 14));
+        removeClearButton.setPreferredSize(new Dimension(26, 26));
+        removeClearButton.setFocusPainted(false);
+        removeClearButton.setContentAreaFilled(false);
+        removeClearButton.setBorderPainted(false);
+        removeClearButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        removeClearButton.setVisible(false);
+        removeClearButton.setMargin(new Insets(0, 0, 0, 0));
+        removeClearButton.setToolTipText("清除搜索内容");
+
+        // 右侧区域：清除按钮 + 搜索图标
+        JPanel removeSearchRightPanel = new JPanel(new BorderLayout(0, 0));
+        removeSearchRightPanel.setOpaque(false);
+        removeSearchRightPanel.add(removeClearButton, BorderLayout.WEST);
+        removeSearchRightPanel.add(removeSearchIconLabel, BorderLayout.EAST);
+
+        JPanel removeSearchFieldPanel = new JPanel(new BorderLayout(0, 0));
+        removeSearchFieldPanel.setBackground(Color.WHITE);
+        removeSearchFieldPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_GRAY, 1, true),
+                BorderFactory.createEmptyBorder(0, 0, 0, 0)
+        ));
+
+        JPanel removeSearchCenterPanel = new JPanel(new BorderLayout());
+        removeSearchCenterPanel.setOpaque(false);
+        removeSearchCenterPanel.add(removeSearchField, BorderLayout.CENTER);
+        removeSearchCenterPanel.add(removeSearchPlaceholder, BorderLayout.WEST);
+        removeSearchFieldPanel.add(removeSearchCenterPanel, BorderLayout.CENTER);
+        removeSearchFieldPanel.add(removeSearchRightPanel, BorderLayout.EAST);
+
+        JLabel removeNoResultLabel = new JLabel("没有匹配的文件");
+        removeNoResultLabel.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        removeNoResultLabel.setForeground(new Color(160, 160, 160));
+        removeNoResultLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        removeNoResultLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        removeNoResultLabel.setVisible(false);
+
+        // 原始边框标题
+        final TitledBorder removeOriginalBorder = BorderFactory.createTitledBorder("有标签的文件");
+        // 用于在定时器中引用 JScrollPane 以刷新边框
+        final JScrollPane[] removeFilesScrollHolder = new JScrollPane[1];
+
+        // 防抖定时器（300ms）
+        Timer removeSearchTimer = new Timer(300, e -> {
+            String filterText = removeSearchField.getText().trim();
+            boolean isFiltering = !filterText.isEmpty();
+            removeClearButton.setVisible(isFiltering);
+
+            filesPanel.removeAll();
+            fileButtons.clear();
+
+            String[] keywords = isFiltering ? filterText.split("\\s+") : new String[0];
+            int matchCount = 0;
+
+            if (isFiltering) {
+                // 多关键词匹配 + 按相关度排序
+                List<Map.Entry<File, Integer>> scored = new ArrayList<>();
+                for (File file : taggedFiles) {
+                    if (matchesAllKeywords(file.getName(), keywords)) {
+                        scored.add(new AbstractMap.SimpleEntry<>(file, calculateRelevance(file.getName(), keywords)));
+                    }
+                }
+                scored.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
+                matchCount = scored.size();
+
+                for (Map.Entry<File, Integer> entry : scored) {
+                    File file = entry.getKey();
+                    final File currentFile = file;
+                    String htmlText = highlightKeywords(file.getName(), keywords);
+                    JToggleButton fileButton = new JToggleButton(htmlText);
+                    fileButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+                    fileButton.setFocusPainted(false);
+                    fileButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+                    fileButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+                    fileButton.setHorizontalAlignment(SwingConstants.LEFT);
+                    fileButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, fileButton.getPreferredSize().height));
+
+                    if (selectedFiles.contains(currentFile)) {
+                        fileButton.setSelected(true);
+                    }
+
+                    fileButton.addItemListener(ev -> {
+                        if (fileButton.isSelected()) {
+                            selectedFiles.add(currentFile);
+                        } else {
+                            selectedFiles.remove(currentFile);
+                        }
+                    });
+
+                    fileButtons.add(fileButton);
+                    filesPanel.add(fileButton);
+                    filesPanel.add(Box.createVerticalStrut(5));
+                }
+            } else {
+                // 无搜索关键词，显示全部有标签的文件
+                for (File file : taggedFiles) {
+                    matchCount++;
+                    final File currentFile = file;
+                    JToggleButton fileButton = new JToggleButton(file.getName());
+                    fileButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+                    fileButton.setFocusPainted(false);
+                    fileButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+                    fileButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+                    fileButton.setHorizontalAlignment(SwingConstants.LEFT);
+                    fileButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, fileButton.getPreferredSize().height));
+
+                    if (selectedFiles.contains(currentFile)) {
+                        fileButton.setSelected(true);
+                    }
+
+                    fileButton.addItemListener(ev -> {
+                        if (fileButton.isSelected()) {
+                            selectedFiles.add(currentFile);
+                        } else {
+                            selectedFiles.remove(currentFile);
+                        }
+                    });
+
+                    fileButtons.add(fileButton);
+                    filesPanel.add(fileButton);
+                    filesPanel.add(Box.createVerticalStrut(5));
+                }
+            }
+
+            removeNoResultLabel.setVisible(isFiltering && matchCount == 0);
+            if (isFiltering && matchCount == 0) {
+                filesPanel.add(removeNoResultLabel);
+            }
+
+            // 更新边框标题，提示搜索状态
+            if (isFiltering) {
+                removeOriginalBorder.setTitle("有标签的文件（搜索中 - " + matchCount + " 个匹配）");
+            } else {
+                removeOriginalBorder.setTitle("有标签的文件");
+            }
+            filesPanel.revalidate();
+            filesPanel.repaint();
+            // 刷新 JScrollPane 以立即显示更新后的边框标题
+            if (removeFilesScrollHolder[0] != null) {
+                removeFilesScrollHolder[0].repaint();
+            }
+
+            enableRangeSelection(fileButtons);
+        });
+        removeSearchTimer.setRepeats(false);
+
+        // 实时监听输入
+        removeSearchField.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                removeSearchPlaceholder.setVisible(false);
+                removeClearButton.setVisible(true);
+                removeSearchTimer.restart();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                if (removeSearchField.getText().isEmpty()) {
+                    removeClearButton.setVisible(false);
+                    removeSearchPlaceholder.setVisible(true);
+                }
+                removeSearchTimer.restart();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                removeSearchTimer.restart();
+            }
+        });
+
+        // 键盘支持：Enter 触发搜索，Esc 清除
+        removeSearchField.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+                    removeSearchField.setText("");
+                    removeClearButton.setVisible(false);
+                    removeSearchPlaceholder.setVisible(true);
+                    removeSearchField.requestFocusInWindow();
+                    removeSearchTimer.restart();
+                }
+            }
+        });
+
+        // 清除按钮
+        removeClearButton.addActionListener(e -> {
+            removeSearchField.setText("");
+            removeClearButton.setVisible(false);
+            removeSearchPlaceholder.setVisible(true);
+            removeSearchField.requestFocusInWindow();
+            removeSearchTimer.restart();
+        });
+
+        // 搜索面板包装
+        JPanel removeSearchPanel = new JPanel(new BorderLayout(0, 0));
+        removeSearchPanel.setBackground(BG_CONTENT);
+        removeSearchPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        removeSearchPanel.add(removeSearchFieldPanel, BorderLayout.CENTER);
+
+        // 文件容器：搜索框 + 文件列表
+        JPanel filesContainer = new JPanel(new BorderLayout());
+        filesContainer.setBackground(BG_CONTENT);
+        filesContainer.add(removeSearchPanel, BorderLayout.NORTH);
+        filesContainer.add(filesPanel, BorderLayout.CENTER);
+
+        // 初始加载所有有标签的文件
         for (File file : taggedFiles) {
             final File currentFile = file;
             JToggleButton fileButton = new JToggleButton(file.getName());
@@ -1003,10 +1459,11 @@ public final class SwingUtil {
             }
         }
 
-        JScrollPane filesScroll = new JScrollPane(filesPanel);
+        JScrollPane filesScroll = new JScrollPane(filesContainer);
         filesScroll.getVerticalScrollBar().setUnitIncrement(16);
         filesScroll.setBackground(BG_CONTENT);
-        filesScroll.setBorder(BorderFactory.createTitledBorder("有标签的文件"));
+        filesScroll.setBorder(removeOriginalBorder);
+        removeFilesScrollHolder[0] = filesScroll;
 
         // ==================== JSplitPane 实现左右可拖拽 ====================
         JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, tagsScroll, filesScroll);
@@ -1488,6 +1945,135 @@ public final class SwingUtil {
         }
         String[] parts = s.split("\\s+");
         return new ArrayList<>(Arrays.asList(parts));
+    }
+
+    /**
+     * 检查文件名是否匹配所有关键词（不区分大小写）。
+     *
+     * @param fileName 文件名
+     * @param keywords 关键词数组
+     * @return 是否全部匹配
+     */
+    private static boolean matchesAllKeywords(String fileName, String[] keywords) {
+        String lowerName = fileName.toLowerCase();
+        for (String keyword : keywords) {
+            if (!lowerName.contains(keyword.toLowerCase())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 计算文件名与关键词的匹配相关度（分数越高越相关）。
+     * 排序规则：匹配关键词数 > 文件名开头匹配 > 短文件名优先 > 关键词出现次数
+     *
+     * @param fileName 文件名
+     * @param keywords 关键词数组
+     * @return 相关度分数
+     */
+    private static int calculateRelevance(String fileName, String[] keywords) {
+        String lowerName = fileName.toLowerCase();
+        int score = 0;
+        int matchedCount = 0;
+        for (String keyword : keywords) {
+            String lowerKeyword = keyword.toLowerCase();
+            int idx = lowerName.indexOf(lowerKeyword);
+            if (idx >= 0) {
+                matchedCount++;
+                score += 100;
+                if (idx == 0) score += 50;
+                if (fileName.length() - keyword.length() < 5) score += 20;
+                int count = 0;
+                int from = 0;
+                while ((from = lowerName.indexOf(lowerKeyword, from)) >= 0) {
+                    count++;
+                    from += lowerKeyword.length();
+                }
+                score += (count - 1) * 10;
+            }
+        }
+        score += matchedCount * 200;
+        score += Math.max(0, 500 - fileName.length());
+        return score;
+    }
+
+    /**
+     * 对文件名中的关键词进行高亮处理，返回 HTML 字符串。
+     * 匹配的关键词会被包裹在黄色背景的 &lt;span&gt; 标签中。
+     *
+     * @param fileName 文件名
+     * @param keywords 关键词数组
+     * @return 带高亮的 HTML 字符串
+     */
+    private static String highlightKeywords(String fileName, String[] keywords) {
+        String escaped = fileName.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+        String lowerName = fileName.toLowerCase();
+
+        List<int[]> highlights = new ArrayList<>();
+        for (String keyword : keywords) {
+            String lowerKeyword = keyword.toLowerCase();
+            int from = 0;
+            while ((from = lowerName.indexOf(lowerKeyword, from)) >= 0) {
+                highlights.add(new int[]{from, from + keyword.length()});
+                from += keyword.length();
+            }
+        }
+
+        highlights.sort(Comparator.comparingInt(a -> a[0]));
+        List<int[]> merged = new ArrayList<>();
+        for (int[] interval : highlights) {
+            if (merged.isEmpty() || merged.get(merged.size() - 1)[1] < interval[0]) {
+                merged.add(interval);
+            } else {
+                merged.get(merged.size() - 1)[1] = Math.max(merged.get(merged.size() - 1)[1], interval[1]);
+            }
+        }
+
+        StringBuilder html = new StringBuilder("<html><nobr>");
+        int lastEnd = 0;
+        for (int[] interval : merged) {
+            int start = interval[0];
+            int end = interval[1];
+            if (start > lastEnd) {
+                html.append(escaped, lastEnd, start);
+            }
+            html.append("<span style=\"background:#FFEB3B;padding:1px\">");
+            html.append(escaped, start, end);
+            html.append("</span>");
+            lastEnd = end;
+        }
+        if (lastEnd < escaped.length()) {
+            html.append(escaped, lastEnd, escaped.length());
+        }
+        html.append("</nobr></html>");
+        return html.toString();
+    }
+
+    /**
+     * 创建搜索图标（放大镜）。
+     *
+     * @return 搜索图标
+     */
+    private static Icon createSearchIcon() {
+        return new Icon() {
+            @Override
+            public void paintIcon(Component c, Graphics g, int x, int y) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(150, 150, 150));
+                g2.setStroke(new BasicStroke(1.5f));
+                g2.drawOval(x + 2, y + 2, 10, 10);
+                g2.drawLine(x + 11, y + 11, x + 15, y + 15);
+                g2.dispose();
+            }
+
+            @Override
+            public int getIconWidth() { return 17; }
+
+            @Override
+            public int getIconHeight() { return 17; }
+        };
     }
 
     /**
