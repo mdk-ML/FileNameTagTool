@@ -747,6 +747,22 @@ public final class SwingUtil {
             }
         });
 
+        // 双击文件行打开文件
+        fileTable.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(e)) {
+                    int row = fileTable.rowAtPoint(e.getPoint());
+                    if (row >= 0) {
+                        File file = tableModel.getFileAt(fileTable.convertRowIndexToModel(row));
+                        if (file != null && file.exists()) {
+                            openFile(file);
+                        }
+                    }
+                }
+            }
+        });
+
         JScrollPane filesScroll = new JScrollPane(fileTable);
         filesScroll.getVerticalScrollBar().setUnitIncrement(16);
         filesScroll.setBackground(BG_CONTENT);
@@ -1326,6 +1342,22 @@ public final class SwingUtil {
                 Config.fileSortColumn = col;
                 Config.fileSortAscending = ascending;
                 ConfigUtil.save();
+            }
+        });
+
+        // 双击文件行打开文件
+        fileTable.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(e)) {
+                    int row = fileTable.rowAtPoint(e.getPoint());
+                    if (row >= 0) {
+                        File file = tableModel.getFileAt(fileTable.convertRowIndexToModel(row));
+                        if (file != null && file.exists()) {
+                            openFile(file);
+                        }
+                    }
+                }
             }
         });
 
@@ -2190,6 +2222,23 @@ public final class SwingUtil {
                     }
                 }
             });
+        }
+    }
+
+    /**
+     * 使用系统默认程序打开文件。
+     *
+     * @param file 要打开的文件
+     */
+    private static void openFile(File file) {
+        try {
+            if (Desktop.isDesktopSupported()) {
+                Desktop.getDesktop().open(file);
+            } else {
+                showError("当前系统不支持自动打开文件");
+            }
+        } catch (Exception ex) {
+            showError("无法打开文件: " + ex.getMessage());
         }
     }
 
