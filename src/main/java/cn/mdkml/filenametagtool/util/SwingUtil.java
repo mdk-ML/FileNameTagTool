@@ -41,6 +41,7 @@ public final class SwingUtil {
     private static final Color BG_MAIN = new Color(240, 240, 240);
     private static final Color BORDER_GRAY = new Color(220, 220, 220);
     private static final Color TEXT_DARK = new Color(51, 51, 51);
+    private static final Color TEXT_GRAY = new Color(150, 150, 150);
 
     /**
      * 初始化系统外观设置
@@ -673,16 +674,29 @@ public final class SwingUtil {
 
         // 列宽拖拽保存
         fileTable.getColumnModel().addColumnModelListener(new javax.swing.event.TableColumnModelListener() {
-            @Override public void columnAdded(javax.swing.event.TableColumnModelEvent e) {}
-            @Override public void columnRemoved(javax.swing.event.TableColumnModelEvent e) {}
-            @Override public void columnMoved(javax.swing.event.TableColumnModelEvent e) {}
-            @Override public void columnMarginChanged(javax.swing.event.ChangeEvent e) {
+            @Override
+            public void columnAdded(javax.swing.event.TableColumnModelEvent e) {
+            }
+
+            @Override
+            public void columnRemoved(javax.swing.event.TableColumnModelEvent e) {
+            }
+
+            @Override
+            public void columnMoved(javax.swing.event.TableColumnModelEvent e) {
+            }
+
+            @Override
+            public void columnMarginChanged(javax.swing.event.ChangeEvent e) {
                 for (int i = 0; i < fileTable.getColumnCount(); i++) {
                     Config.fileColumnWidths[i] = fileTable.getColumnModel().getColumn(i).getWidth();
                 }
                 ConfigUtil.save();
             }
-            @Override public void columnSelectionChanged(javax.swing.event.ListSelectionEvent e) {}
+
+            @Override
+            public void columnSelectionChanged(javax.swing.event.ListSelectionEvent e) {
+            }
         });
 
         // 自定义表头渲染器
@@ -733,6 +747,7 @@ public final class SwingUtil {
         filesScroll.getVerticalScrollBar().setUnitIncrement(16);
         filesScroll.setBackground(BG_CONTENT);
         filesScroll.getViewport().setBackground(BG_CONTENT);
+        filesScroll.setBorder(BorderFactory.createEmptyBorder(0, 4, 0, 6));
 
         // 搜索输入框（内嵌清除按钮和搜索图标）
         JLabel searchIconLabel = new JLabel(createSearchIcon());
@@ -746,7 +761,7 @@ public final class SwingUtil {
 
         JLabel searchPlaceholder = new JLabel("搜索文件");
         searchPlaceholder.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
-        searchPlaceholder.setForeground(new Color(160, 160, 160));
+        searchPlaceholder.setForeground(TEXT_GRAY);
         searchPlaceholder.setOpaque(false);
 
         JButton clearButton = new JButton("\u00d7");
@@ -759,6 +774,7 @@ public final class SwingUtil {
         clearButton.setVisible(false);
         clearButton.setMargin(new Insets(0, 0, 0, 0));
         clearButton.setToolTipText("清除搜索内容");
+        clearButton.setForeground(TEXT_GRAY);
 
         JPanel searchRightPanel = new JPanel(new BorderLayout(0, 0));
         searchRightPanel.setOpaque(false);
@@ -901,7 +917,7 @@ public final class SwingUtil {
         filesContainer.add(searchPanel, BorderLayout.NORTH);
         filesContainer.add(filesScroll, BorderLayout.CENTER);
         filesContainer.add(statusBar, BorderLayout.SOUTH);
-
+        filesContainer.setBorder(originalBorder);
         // 自动选中指定的文件
         if (filesToSelect != null && !filesToSelect.isEmpty()) {
             Set<String> selectNames = new HashSet<>();
@@ -919,8 +935,6 @@ public final class SwingUtil {
             }
         }
 
-        filesScroll.setBorder(originalBorder);
-
         // ==================== 右侧下部：自定义标签输入模块 ====================
         String placeholderText = "输入自定义标签，多个标签请用空格分隔，例如：紧急任务 Q2季度报告 客户反馈";
         JTextArea input = new JTextArea();
@@ -929,7 +943,7 @@ public final class SwingUtil {
         input.setLineWrap(true);
         input.setWrapStyleWord(true);
         input.setText(placeholderText);
-        input.setForeground(new Color(160, 160, 160));
+        input.setForeground(TEXT_GRAY);
         input.addFocusListener(new FocusAdapter() {
             @Override
             public void focusGained(FocusEvent event) {
@@ -943,7 +957,7 @@ public final class SwingUtil {
             public void focusLost(FocusEvent event) {
                 if (input.getText().isEmpty()) {
                     input.setText(placeholderText);
-                    input.setForeground(new Color(160, 160, 160));
+                    input.setForeground(TEXT_GRAY);
                 }
             }
         });
@@ -1227,16 +1241,29 @@ public final class SwingUtil {
 
         // 列宽拖拽保存
         fileTable.getColumnModel().addColumnModelListener(new javax.swing.event.TableColumnModelListener() {
-            @Override public void columnAdded(javax.swing.event.TableColumnModelEvent e) {}
-            @Override public void columnRemoved(javax.swing.event.TableColumnModelEvent e) {}
-            @Override public void columnMoved(javax.swing.event.TableColumnModelEvent e) {}
-            @Override public void columnMarginChanged(javax.swing.event.ChangeEvent e) {
+            @Override
+            public void columnAdded(javax.swing.event.TableColumnModelEvent e) {
+            }
+
+            @Override
+            public void columnRemoved(javax.swing.event.TableColumnModelEvent e) {
+            }
+
+            @Override
+            public void columnMoved(javax.swing.event.TableColumnModelEvent e) {
+            }
+
+            @Override
+            public void columnMarginChanged(javax.swing.event.ChangeEvent e) {
                 for (int i = 0; i < fileTable.getColumnCount(); i++) {
                     Config.fileColumnWidths[i] = fileTable.getColumnModel().getColumn(i).getWidth();
                 }
                 ConfigUtil.save();
             }
-            @Override public void columnSelectionChanged(javax.swing.event.ListSelectionEvent e) {}
+
+            @Override
+            public void columnSelectionChanged(javax.swing.event.ListSelectionEvent e) {
+            }
         });
 
         // 自定义表头渲染器
@@ -1287,7 +1314,7 @@ public final class SwingUtil {
         filesScroll.getVerticalScrollBar().setUnitIncrement(16);
         filesScroll.setBackground(BG_CONTENT);
         filesScroll.getViewport().setBackground(BG_CONTENT);
-
+        filesScroll.setBorder(BorderFactory.createEmptyBorder(0, 4, 0, 6));
         // 搜索输入框（内嵌清除按钮和搜索图标）
         JLabel removeSearchIconLabel = new JLabel(createSearchIcon());
         removeSearchIconLabel.setBorder(BorderFactory.createEmptyBorder(0, 4, 0, 6));
@@ -1300,10 +1327,11 @@ public final class SwingUtil {
 
         JLabel removeSearchPlaceholder = new JLabel("搜索文件");
         removeSearchPlaceholder.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
-        removeSearchPlaceholder.setForeground(new Color(160, 160, 160));
+        removeSearchPlaceholder.setForeground(TEXT_GRAY);
         removeSearchPlaceholder.setOpaque(false);
 
         JButton removeClearButton = new JButton("\u00d7");
+        removeClearButton.setForeground(TEXT_GRAY);
         removeClearButton.setFont(new Font("Microsoft YaHei UI", Font.BOLD, 14));
         removeClearButton.setPreferredSize(new Dimension(26, 26));
         removeClearButton.setFocusPainted(false);
@@ -1455,7 +1483,7 @@ public final class SwingUtil {
         filesContainer.add(removeSearchPanel, BorderLayout.NORTH);
         filesContainer.add(filesScroll, BorderLayout.CENTER);
         filesContainer.add(removeStatusBar, BorderLayout.SOUTH);
-
+        filesContainer.setBorder(removeOriginalBorder);
         // 自动选中指定的文件
         if (filesToSelect != null && !filesToSelect.isEmpty()) {
             Set<String> selectNames = new HashSet<>();
@@ -1472,8 +1500,6 @@ public final class SwingUtil {
                 }
             }
         }
-
-        filesScroll.setBorder(removeOriginalBorder);
 
         // ==================== JSplitPane 实现左右可拖拽 ====================
         JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, tagsScroll, filesContainer);
@@ -2071,7 +2097,7 @@ public final class SwingUtil {
             public void paintIcon(Component c, Graphics g, int x, int y) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(new Color(150, 150, 150));
+                g2.setColor(TEXT_GRAY);
                 g2.setStroke(new BasicStroke(1.5f));
                 g2.drawOval(x + 2, y + 2, 10, 10);
                 g2.drawLine(x + 11, y + 11, x + 15, y + 15);
@@ -2079,10 +2105,14 @@ public final class SwingUtil {
             }
 
             @Override
-            public int getIconWidth() { return 17; }
+            public int getIconWidth() {
+                return 17;
+            }
 
             @Override
-            public int getIconHeight() { return 17; }
+            public int getIconHeight() {
+                return 17;
+            }
         };
     }
 

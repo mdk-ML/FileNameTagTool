@@ -58,7 +58,7 @@ public class FileNameTagToolTest {
 
         String[] args = {
             "add",
-            "C:\\Users\\MU\\Desktop\\PMP\\预测部分思维导图汇总.pdf"
+            "C:\\Users\\MU\\Desktop\\PMP\\999-PMP各种文件模板参考大全.pdf"
         };
 
         final Parsed parsed = Parsed.parseArgs(args);
