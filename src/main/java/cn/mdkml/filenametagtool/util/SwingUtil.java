@@ -34,6 +34,10 @@ public final class SwingUtil {
 
     /** 当前显示的通知弹窗，用于确保同一时间只显示一个 */
     private static volatile JDialog currentNotification;
+    /** 添加标签面板的搜索关键字（内存暂存，刷新后恢复） */
+    private static String addTagSearchKeyword = "";
+    /** 移除标签面板的搜索关键字（内存暂存，刷新后恢复） */
+    private static String removeTagSearchKeyword = "";
 
     private static final Color GRADIENT_START = new Color(74, 144, 226);
     private static final Color BG_WHITE = Color.WHITE;
@@ -862,6 +866,7 @@ public final class SwingUtil {
         searchField.getDocument().addDocumentListener(new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent e) {
+                addTagSearchKeyword = searchField.getText();
                 searchPlaceholder.setVisible(false);
                 clearButton.setVisible(true);
                 addTagSearchTimer.restart();
@@ -869,6 +874,7 @@ public final class SwingUtil {
 
             @Override
             public void removeUpdate(DocumentEvent e) {
+                addTagSearchKeyword = searchField.getText();
                 if (searchField.getText().isEmpty()) {
                     clearButton.setVisible(false);
                     searchPlaceholder.setVisible(true);
@@ -878,6 +884,7 @@ public final class SwingUtil {
 
             @Override
             public void changedUpdate(DocumentEvent e) {
+                addTagSearchKeyword = searchField.getText();
                 addTagSearchTimer.restart();
             }
         });
@@ -1093,6 +1100,18 @@ public final class SwingUtil {
                 SwingUtilities.invokeLater(input::requestFocusInWindow);
             }
         });
+
+        // 恢复搜索关键字（面板刷新后直接应用过滤，避免闪烁）
+        if (!addTagSearchKeyword.isEmpty()) {
+            String[] keywords = addTagSearchKeyword.split("\\s+");
+            tableModel.setSearchKeywords(keywords);
+            highlightRenderer.setKeywords(keywords);
+            headerRenderer.setSortState(-1, true);
+            searchField.setText(addTagSearchKeyword);
+            clearButton.setVisible(true);
+            searchPlaceholder.setVisible(false);
+            updateStatusBar.run();
+        }
 
         return panel;
     }
@@ -1428,6 +1447,7 @@ public final class SwingUtil {
         removeSearchField.getDocument().addDocumentListener(new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent e) {
+                removeTagSearchKeyword = removeSearchField.getText();
                 removeSearchPlaceholder.setVisible(false);
                 removeClearButton.setVisible(true);
                 removeSearchTimer.restart();
@@ -1435,6 +1455,7 @@ public final class SwingUtil {
 
             @Override
             public void removeUpdate(DocumentEvent e) {
+                removeTagSearchKeyword = removeSearchField.getText();
                 if (removeSearchField.getText().isEmpty()) {
                     removeClearButton.setVisible(false);
                     removeSearchPlaceholder.setVisible(true);
@@ -1444,6 +1465,7 @@ public final class SwingUtil {
 
             @Override
             public void changedUpdate(DocumentEvent e) {
+                removeTagSearchKeyword = removeSearchField.getText();
                 removeSearchTimer.restart();
             }
         });
@@ -1564,6 +1586,18 @@ public final class SwingUtil {
         buttonPanel.add(removeButton);
         buttonPanel.add(removeRefreshButton);
         panel.add(buttonPanel, BorderLayout.SOUTH);
+
+        // 恢复搜索关键字（面板刷新后直接应用过滤，避免闪烁）
+        if (!removeTagSearchKeyword.isEmpty()) {
+            String[] keywords = removeTagSearchKeyword.split("\\s+");
+            tableModel.setSearchKeywords(keywords);
+            highlightRenderer.setKeywords(keywords);
+            headerRenderer.setSortState(-1, true);
+            removeSearchField.setText(removeTagSearchKeyword);
+            removeClearButton.setVisible(true);
+            removeSearchPlaceholder.setVisible(false);
+            updateRemoveStatusBar.run();
+        }
 
         return panel;
     }
