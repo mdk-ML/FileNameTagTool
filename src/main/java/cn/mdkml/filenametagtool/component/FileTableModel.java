@@ -1,10 +1,14 @@
 package cn.mdkml.filenametagtool.component;
 
+import cn.mdkml.filenametagtool.model.Config;
+import cn.mdkml.filenametagtool.util.FileUtil;
+
 import javax.swing.table.AbstractTableModel;
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.List;
 
 /**
  * 文件列表表格模型，支持多关键词搜索过滤、相关度排序和按列排序。
@@ -16,7 +20,7 @@ import java.util.stream.Collectors;
  */
 public class FileTableModel extends AbstractTableModel {
 
-    private static final String[] COLUMNS = {"名称", "修改日期", "类型", "大小"};
+    private static final String[] COLUMNS = {"名称", "标签", "修改日期", "类型", "大小"};
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy/MM/dd HH:mm");
 
     private final List<FileEntry> allEntries = new ArrayList<>();
@@ -185,20 +189,58 @@ public class FileTableModel extends AbstractTableModel {
             case 0: // 名称
                 cmp = a.file.getName().compareToIgnoreCase(b.file.getName());
                 break;
-            case 1: // 修改日期
+            case 1: // 标签 - 按配置中的标签顺序排序
+                cmp = compareTagsByConfigOrder(a.file.getName(), b.file.getName());
+                if (cmp == 0) cmp = a.file.getName().compareToIgnoreCase(b.file.getName());
+                break;
+            case 2: // 修改日期
                 cmp = Long.compare(a.file.lastModified(), b.file.lastModified());
                 break;
-            case 2: // 类型
+            case 3: // 类型
                 cmp = a.type.compareToIgnoreCase(b.type);
                 if (cmp == 0) cmp = a.file.getName().compareToIgnoreCase(b.file.getName());
                 break;
-            case 3: // 大小
+            case 4: // 大小
                 cmp = Long.compare(a.file.length(), b.file.length());
                 break;
             default:
                 cmp = 0;
         }
         return ascending ? cmp : -cmp;
+    }
+
+    /**
+     * 按配置中的标签顺序比较两个文件的标签
+     * 取每个文件的第一个标签，按 Config.tags 中的索引位置排序
+     * 没有标签的文件排在最后
+     */
+    private int compareTagsByConfigOrder(String fileNameA, String fileNameB) {
+        List<String> tagsA = FileUtil.parseAllTags(fileNameA);
+        List<String> tagsB = FileUtil.parseAllTags(fileNameB);
+
+        int orderA = getFirstTagOrder(tagsA);
+        int orderB = getFirstTagOrder(tagsB);
+
+        return Integer.compare(orderA, orderB);
+    }
+
+    /**
+     * 获取标签列表中第一个标签在配置中的顺序索引
+     * 没有标签或标签不在配置中时返回 Integer.MAX_VALUE
+     */
+    private int getFirstTagOrder(List<String> tags) {
+        if (tags.isEmpty()) {
+            return Integer.MAX_VALUE;
+        }
+        // 遍历文件的标签，找到在配置中顺序最靠前的
+        int minOrder = Integer.MAX_VALUE;
+        for (String tag : tags) {
+            int index = Config.tags.indexOf(tag);
+            if (index >= 0 && index < minOrder) {
+                minOrder = index;
+            }
+        }
+        return minOrder;
     }
 
     // ========== AbstractTableModel ==========
@@ -221,10 +263,11 @@ public class FileTableModel extends AbstractTableModel {
     @Override
     public Class<?> getColumnClass(int columnIndex) {
         switch (columnIndex) {
-            case 0: return String.class;
-            case 1: return String.class;
-            case 2: return String.class;
-            case 3: return String.class;
+            case 0: return String.class;  // 名称
+            case 1: return String.class;  // 标签
+            case 2: return String.class;  // 修改日期
+            case 3: return String.class;  // 类型
+            case 4: return String.class;  // 大小
             default: return Object.class;
         }
     }
@@ -234,11 +277,26 @@ public class FileTableModel extends AbstractTableModel {
         if (rowIndex < 0 || rowIndex >= displayedEntries.size()) return "";
         FileEntry entry = displayedEntries.get(rowIndex);
         switch (columnIndex) {
-            case 0: return entry.file.getName();
-            case 1: return DATE_FORMAT.format(new Date(entry.file.lastModified()));
-            case 2: return entry.type;
-            case 3: return formatFileSize(entry.file.length());
-            default: return "";
+            case 0: { // 名称（过滤标签，显示纯文件名）
+                String rawName = entry.file.getName();
+                int dot = rawName.lastIndexOf('.');
+                String base = dot > 0 ? rawName.substring(0, dot) : rawName;
+                String ext = dot > 0 ? rawName.substring(dot) : "";
+                String cleanName = FileUtil.getAllTagsPattern().matcher(base).replaceAll("").trim();
+                return cleanName.isEmpty() ? rawName : cleanName + ext;
+            }
+            case 1: { // 标签
+                List<String> tags = FileUtil.parseAllTags(entry.file.getName());
+                return String.join(",", tags);
+            }
+            case 2: // 修改日期
+                return DATE_FORMAT.format(new Date(entry.file.lastModified()));
+            case 3: // 类型
+                return entry.type;
+            case 4: // 大小
+                return formatFileSize(entry.file.length());
+            default:
+                return "";
         }
     }
 

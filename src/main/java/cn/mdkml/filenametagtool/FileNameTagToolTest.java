@@ -28,7 +28,7 @@ public class FileNameTagToolTest {
 
         String[] args = {
             "manage",
-            "C:\\Users\\MU\\Desktop\\【测试】FileNameTagTool"
+            "C:\\Users\\MU\\Desktop\\PMP\\880视频课程（周子裕、李凤兰）"
         };
 
         final Parsed parsed = Parsed.parseArgs(args);
@@ -90,7 +90,7 @@ public class FileNameTagToolTest {
      * @param args 命令行参数（未使用）
      */
     public static void main(String[] args) {
-        // testSearch();
-        testAdd();
+         testSearch();
+//        testAdd();
     }
 }

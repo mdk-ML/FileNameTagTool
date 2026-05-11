@@ -60,7 +60,7 @@ public final class FileNameTagTool {
             return;
         }
 
-        // 添加/移除标签模式：打开标签管理窗口，自动切换到对应标签页并选中文件
+        // 添加/移除标签模式：打开标签管理窗口，自动切换到统一标签管理页并选中文件
         if (action == Action.ADD || action == Action.REMOVE) {
             Path firstFile = existing.get(0);
             Path dir = firstFile.getParent();
@@ -68,8 +68,7 @@ public final class FileNameTagTool {
                 SwingUtil.showError("无法获取文件所在目录");
                 return;
             }
-            int tab = action == Action.ADD ? TabIndex.ADD_TAG : TabIndex.REMOVE_TAG;
-            SwingUtil.createTagManagerWindow(dir.toString(), tab, existing);
+            SwingUtil.createTagManagerWindow(dir.toString(), TabIndex.UNIFIED_TAG, existing);
             return;
         }
 

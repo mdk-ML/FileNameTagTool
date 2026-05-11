@@ -11,15 +11,9 @@ public final class TabIndex {
         // 私有构造函数，防止实例化
     }
     
-    /** 搜索标签页索引 */
-    public static final int SEARCH = 0;
-    
-    /** 添加标签页索引 */
-    public static final int ADD_TAG = 1;
-    
-    /** 移除标签页索引 */
-    public static final int REMOVE_TAG = 2;
+    /** 统一标签管理页索引 */
+    public static final int UNIFIED_TAG = 0;
     
     /** 设置标签页索引 */
-    public static final int SETTINGS = 3;
+    public static final int SETTINGS = 1;
 }

@@ -2,6 +2,7 @@ package cn.mdkml.filenametagtool.util;
 
 import cn.mdkml.filenametagtool.model.Config;
 
+import java.awt.Color;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -120,6 +121,7 @@ public final class ConfigUtil {
         Config.fileSortColumn = getInt(Config.KEY_FILE_SORT_COLUMN, Config.fileSortColumn);
         Config.fileSortAscending = getInt(Config.KEY_FILE_SORT_ASCENDING, Config.fileSortAscending ? 0 : 1) == 0;
         Config.fileColumnWidths = getIntArray(Config.KEY_FILE_COLUMN_WIDTHS, Config.fileColumnWidths);
+        loadTagColors();
     }
 
     /**
@@ -290,7 +292,10 @@ public final class ConfigUtil {
 
             writePropertyLine(writer, "# 文件列表排序列索引（0=名称, 1=修改日期, 2=类型, 3=大小）", Config.KEY_FILE_SORT_COLUMN, String.valueOf(Config.fileSortColumn));
             writePropertyLine(writer, "# 文件列表排序方向（0=升序, 1=降序）", Config.KEY_FILE_SORT_ASCENDING, Config.fileSortAscending ? "0" : "1");
-            writePropertyLine(writer, "# 文件列表各列宽度（名称,修改日期,类型,大小）", Config.KEY_FILE_COLUMN_WIDTHS, intArrayToString(Config.fileColumnWidths));
+            writePropertyLine(writer, "# 文件列表各列宽度（名称,标签,修改日期,类型,大小）", Config.KEY_FILE_COLUMN_WIDTHS, intArrayToString(Config.fileColumnWidths));
+            writer.newLine();
+
+            writePropertyLine(writer, "# 标签颜色配置", Config.KEY_TAG_COLORS, getTagColorsString());
             writer.newLine();
 
             writer.write("# 标签列表（多个标签用逗号分隔）");
@@ -335,6 +340,7 @@ public final class ConfigUtil {
         set(Config.KEY_FILE_SORT_COLUMN, Config.fileSortColumn);
         set(Config.KEY_FILE_SORT_ASCENDING, Config.fileSortAscending ? 0 : 1);
         set(Config.KEY_FILE_COLUMN_WIDTHS, intArrayToString(Config.fileColumnWidths));
+        saveTagColors();
     }
 
     /**
@@ -351,5 +357,57 @@ public final class ConfigUtil {
             sb.append(arr[i]);
         }
         return sb.toString();
+    }
+
+    /**
+     * 从配置文件加载标签颜色
+     */
+    private static void loadTagColors() {
+        Config.tagColors.clear();
+        String value = properties.getProperty(Config.KEY_TAG_COLORS, "");
+        if (value != null && !value.isEmpty()) {
+            String[] pairs = value.split(",");
+            for (String pair : pairs) {
+                String[] parts = pair.split(":");
+                if (parts.length == 2) {
+                    try {
+                        Config.tagColors.put(parts[0].trim(), Color.decode(parts[1].trim()));
+                    } catch (NumberFormatException e) {
+                        // 忽略无效的颜色值
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 将标签颜色保存到Properties对象
+     */
+    private static void saveTagColors() {
+        set(Config.KEY_TAG_COLORS, getTagColorsString());
+    }
+
+    /**
+     * 获取标签颜色的字符串表示
+     *
+     * @return 标签颜色字符串
+     */
+    private static String getTagColorsString() {
+        StringBuilder sb = new StringBuilder();
+        for (var entry : Config.tagColors.entrySet()) {
+            if (sb.length() > 0) sb.append(",");
+            sb.append(entry.getKey()).append(":").append(colorToHex(entry.getValue()));
+        }
+        return sb.toString();
+    }
+
+    /**
+     * 将颜色转换为十六进制字符串
+     *
+     * @param color 颜色对象
+     * @return 十六进制颜色字符串（如 #FF0000）
+     */
+    private static String colorToHex(Color color) {
+        return String.format("#%02X%02X%02X", color.getRed(), color.getGreen(), color.getBlue());
     }
 }

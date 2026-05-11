@@ -1,7 +1,10 @@
 package cn.mdkml.filenametagtool.model;
 
+import java.awt.Color;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Config {
     public static final String CONFIG_FILE_PATH = ".filenametagtool";
@@ -35,8 +38,10 @@ public class Config {
     public static final String KEY_FILE_SORT_COLUMN = "file.sort.column";
     /** 文件列表排序方向（0=升序, 1=降序） */
     public static final String KEY_FILE_SORT_ASCENDING = "file.sort.ascending";
-    /** 文件列表各列宽度（逗号分隔：名称,修改日期,类型,大小） */
+    /** 文件列表各列宽度（逗号分隔：名称,标签,修改日期,类型,大小） */
     public static final String KEY_FILE_COLUMN_WIDTHS = "file.column.widths";
+    /** 标签颜色配置（格式：标签名1:#FF0000,标签名2:#00FF00） */
+    public static final String KEY_TAG_COLORS = "tag.colors";
 
     public static int windowX = 0;
     public static int windowY = 0;
@@ -62,8 +67,10 @@ public class Config {
     public static int fileSortColumn = 0;
     /** 文件列表排序方向（true=升序, false=降序） */
     public static boolean fileSortAscending = true;
-    /** 文件列表各列宽度（名称,修改日期,类型,大小） */
-    public static int[] fileColumnWidths = {250, 140, 80, 80};
+    /** 文件列表各列宽度（名称,标签,修改日期,类型,大小） */
+    public static int[] fileColumnWidths = {200, 150, 140, 80, 80};
+    /** 标签颜色映射表 */
+    public static Map<String, Color> tagColors = new HashMap<>();
 
     /**
      * 获取当前标签左包裹符号
