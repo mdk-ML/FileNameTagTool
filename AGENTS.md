@@ -140,7 +140,42 @@
     }
     ```
 
-### 6. 行内注释
+### 6. Swing/CS编程注释规范
+- **涉及Swing等CS（客户端）编程的代码，尽可能每一行都加上注释**
+  - 目的：帮助熟悉BS开发（Spring全家桶、HTML相关技术）的工程师理解CS编程模式
+  - 注释应侧重于：Swing组件的用途、事件模型机制、布局管理器行为、线程调度（EDT）等CS特有概念
+  - 适当对比BS与CS的差异，帮助建立认知映射（如：`JTable` 类似于前端的 `<table>`，`LayoutManager` 类似于CSS布局）
+  - ✅ 推荐：
+    ```java
+    // 创建表格模型，类似于前端中定义表格的数据结构
+    DefaultTableModel model = new DefaultTableModel();
+    // 设置表头列名，对应HTML中的<th>标签
+    model.setColumnIdentifiers(new String[]{"姓名", "年龄", "部门"});
+
+    // 创建JTable组件并绑定数据模型，类似于前端将数据渲染到<table>元素
+    JTable table = new JTable(model);
+    // 设置表格行高，提升可读性
+    table.setRowHeight(25);
+    // 启用表格行选中模式，允许用户点击选中整行
+    table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+
+    // 将表格放入滚动面板，Swing中大型组件通常需要 JScrollPane 包裹才能正常显示滚动条
+    JScrollPane scrollPane = new JScrollPane(table);
+    // 将滚动面板添加到主窗口，使用BorderLayout的CENTER区域自动填充剩余空间
+    frame.add(scrollPane, BorderLayout.CENTER);
+    ```
+  - ❌ 避免：
+    ```java
+    DefaultTableModel model = new DefaultTableModel();
+    model.setColumnIdentifiers(new String[]{"姓名", "年龄", "部门"});
+    JTable table = new JTable(model);
+    table.setRowHeight(25);
+    table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+    JScrollPane scrollPane = new JScrollPane(table);
+    frame.add(scrollPane, BorderLayout.CENTER);
+    ```
+
+### 7. 行内注释
 - **复杂逻辑应补充行内注释**
   - 解释"为什么"而不是"做什么"
   - 对算法、业务规则、边界条件等进行说明
@@ -160,14 +195,14 @@
 
 ## 语言规范
 
-### 7. 模型输出语言
+### 8. 模型输出语言
 - **模型的所有思考、回复、解释均必须使用简体中文**
   - 包括：代码分析、方案说明、问题回答、注释说明等一切非代码文本输出
   - ✅ 推荐：`这个方法的作用是解析用户输入并返回格式化后的结果`
   - ❌ 避免：`This method parses user input and returns formatted results`
   - 技术术语可保留英文（如HTTP、JSON、API等），但上下文说明必须使用中文
 
-### 8. 用户界面文本
+### 9. 用户界面文本
 - **所有面向用户的文本均使用简体中文**
   - 包括：错误消息、日志输出、API响应消息、UI标签等
   - ✅ 推荐：`throw new IllegalArgumentException("用户ID不能为空");`
@@ -176,7 +211,7 @@
 
 ## 参考规范
 
-### 9. 阿里巴巴Java开发手册
+### 10. 阿里巴巴Java开发手册
 - **尽可能遵守《阿里巴巴Java开发手册》**
   - 命名规范
   - 常量定义
