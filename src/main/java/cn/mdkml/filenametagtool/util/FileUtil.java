@@ -119,6 +119,54 @@ public final class FileUtil {
     }
 
     /**
+     * 将文件名中的旧标签替换为新标签。
+     * 如果文件名中不包含旧标签，则不进行任何操作。
+     *
+     * @param path   文件路径
+     * @param oldTag 旧标签名
+     * @param newTag 新标签名
+     * @return 是否成功替换标签
+     * @throws IOException 如果文件操作失败
+     */
+    public static boolean replaceTag(Path path, String oldTag, String newTag) throws IOException {
+        Path parent = path.getParent();
+        Path fileName = path.getFileName();
+        if (parent == null || fileName == null) {
+            return false;
+        }
+
+        String leaf = fileName.toString();
+        int dot = leaf.lastIndexOf('.');
+        String base = dot > 0 ? leaf.substring(0, dot) : leaf;
+        String ext = dot > 0 ? leaf.substring(dot) : "";
+
+        List<String> tags = parseAllTags(base);
+        if (!tags.contains(oldTag)) {
+            return false;
+        }
+
+        List<String> newTags = new ArrayList<>();
+        for (String tag : tags) {
+            if (tag.equals(oldTag)) {
+                newTags.add(newTag);
+            } else {
+                newTags.add(tag);
+            }
+        }
+
+        String rest = getAllTagsPattern().matcher(base).replaceAll("");
+        String newLeaf = buildOrderedName(rest, newTags) + ext;
+        if (newLeaf.equals(leaf)) {
+            return false;
+        }
+
+        Path target = parent.resolve(newLeaf);
+        target = ensureNonExisting(target);
+        Files.move(path, target);
+        return true;
+    }
+
+    /**
      * 移除文件名中的所有标签
      *
      * @param path 文件路径

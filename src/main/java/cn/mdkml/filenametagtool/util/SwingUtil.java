@@ -574,7 +574,7 @@ public final class SwingUtil {
         fileTable.setBackground(BG_CONTENT);
         fileTable.setSelectionBackground(new Color(200, 220, 240));
         fileTable.setSelectionForeground(Color.BLACK);
-        fileTable.setFocusable(false);
+        fileTable.setFocusable(true);
         fileTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
         fileTable.getTableHeader().setReorderingAllowed(false);
 
@@ -763,6 +763,34 @@ public final class SwingUtil {
                         if (file != null && file.exists()) {
                             openFile(file);
                         }
+                    }
+                }
+            }
+        });
+
+        // 右键菜单：重命名文件
+        JPopupMenu filePopupMenu = new JPopupMenu();
+        JMenuItem renameFileItem = new JMenuItem("重命名");
+        renameFileItem.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        filePopupMenu.add(renameFileItem);
+        renameFileItem.addActionListener(e -> {
+            int selectedRow = fileTable.getSelectedRow();
+            if (selectedRow >= 0) {
+                int modelRow = fileTable.convertRowIndexToModel(selectedRow);
+                File file = tableModel.getFileAt(modelRow);
+                if (file != null && file.exists()) {
+                    showRenameDialog(file, fileTable, tableModel, refreshAction);
+                }
+            }
+        });
+        fileTable.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (SwingUtilities.isRightMouseButton(e)) {
+                    int row = fileTable.rowAtPoint(e.getPoint());
+                    if (row >= 0) {
+                        fileTable.setRowSelectionInterval(row, row);
+                        filePopupMenu.show(fileTable, e.getX(), e.getY());
                     }
                 }
             }
@@ -1251,7 +1279,7 @@ public final class SwingUtil {
         // ==================== 中部：标签管理（排序+颜色） ====================
         JPanel tagsContainer = new JPanel(new BorderLayout());
         tagsContainer.setBackground(BG_CONTENT);
-        tagsContainer.setBorder(BorderFactory.createTitledBorder("标签管理（拖拽调整顺序，双击设置颜色）"));
+        tagsContainer.setBorder(BorderFactory.createTitledBorder("标签管理"));
 
         DefaultListModel<String> tagListModel = new DefaultListModel<>();
         boolean hasFilename = false;
@@ -1319,10 +1347,14 @@ public final class SwingUtil {
             }
         });
 
-        // 右键菜单：清除颜色
+        // 右键菜单：清除颜色 / 重命名
         JPopupMenu tagMenu = new JPopupMenu();
         JMenuItem clearColorItem = new JMenuItem("恢复自动颜色");
         tagMenu.add(clearColorItem);
+        tagMenu.addSeparator();
+        JMenuItem renameTagItem = new JMenuItem("重命名");
+        renameTagItem.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        tagMenu.add(renameTagItem);
         String[] rightClickedTag = new String[1];
         clearColorItem.addActionListener(clearAction -> {
             String tag = rightClickedTag[0];
@@ -1331,6 +1363,12 @@ public final class SwingUtil {
                 ConfigUtil.save();
                 tagJList.repaint();
                 refreshAction.run();
+            }
+        });
+        renameTagItem.addActionListener(e -> {
+            String oldTag = rightClickedTag[0];
+            if (oldTag != null) {
+                showTagRenameDialog(oldTag, tagJList, tagListModel, path, refreshAction);
             }
         });
         tagJList.addMouseListener(new MouseAdapter() {
@@ -1352,8 +1390,26 @@ public final class SwingUtil {
             }
         });
 
+        // F2 重命名标签
+        tagJList.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_F2) {
+                    String selectedTag = tagJList.getSelectedValue();
+                    if (selectedTag != null) {
+                        boolean isSpecial = FileUtil.TAG_ORDER_FILENAME.equals(selectedTag)
+                                || FileUtil.TAG_ORDER_VERSION.equals(selectedTag)
+                                || FileUtil.TAG_ORDER_DATE.equals(selectedTag);
+                        if (!isSpecial) {
+                            showTagRenameDialog(selectedTag, tagJList, tagListModel, path, refreshAction);
+                        }
+                    }
+                }
+            }
+        });
+
         // 提示标签
-        JLabel tipLabel = new JLabel("提示：拖拽调整标签顺序，双击普通标签设置颜色，右键恢复自动颜色");
+        JLabel tipLabel = new JLabel("提示：拖拽调整标签顺序，双击普通标签设置颜色，右键恢复自动颜色/重命名，F2重命名标签");
         tipLabel.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 11));
         tipLabel.setForeground(TEXT_GRAY);
         tipLabel.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
@@ -1832,7 +1888,7 @@ public final class SwingUtil {
         JTextField nameField = new JTextField(cleanName);
         nameField.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
         nameField.setPreferredSize(new Dimension(300, 32));
-        nameField.selectAll();
+        nameField.setCaretPosition(nameField.getText().length());
 
         JLabel extLabel = new JLabel(ext.isEmpty() ? "" : " " + ext);
         extLabel.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
@@ -1898,12 +1954,14 @@ public final class SwingUtil {
             }
         });
 
-        // 回车键确认
+        // 回车键确认 / ESC键取消
         nameField.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
                 if (e.getKeyCode() == KeyEvent.VK_ENTER) {
                     confirmButton.doClick();
+                } else if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+                    dialog.dispose();
                 }
             }
         });
@@ -1918,6 +1976,163 @@ public final class SwingUtil {
         dialog.setContentPane(mainPanel);
         dialog.pack();
         dialog.setLocationRelativeTo(table);
+        dialog.setVisible(true);
+    }
+
+    /**
+     * 显示标签重命名对话框。
+     * 重命名后自动更新配置中的标签名，并将当前目录下所有文件中的旧标签替换为新标签。
+     *
+     * @param oldTag       旧标签名
+     * @param tagJList     标签列表组件
+     * @param tagListModel 标签列表模型
+     * @param dirPath      当前目录路径
+     * @param refreshAction 刷新回调
+     */
+    private static void showTagRenameDialog(String oldTag, JList<String> tagJList, DefaultListModel<String> tagListModel, String dirPath, Runnable refreshAction) {
+        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(tagJList), "重命名标签", true);
+        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        dialog.setResizable(false);
+
+        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        mainPanel.setBackground(BG_CONTENT);
+
+        // 信息面板
+        JPanel infoPanel = new JPanel(new GridLayout(2, 1, 0, 5));
+        infoPanel.setBackground(BG_CONTENT);
+
+        JLabel titleLabel = new JLabel("原标签名：" + oldTag);
+        titleLabel.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+
+        JLabel tipLabel = new JLabel("提示：重命名后自动更新目录下所有文件中的旧标签");
+        tipLabel.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 11));
+        tipLabel.setForeground(TEXT_GRAY);
+
+        infoPanel.add(titleLabel);
+        infoPanel.add(tipLabel);
+
+        // 输入面板
+        JPanel inputPanel = new JPanel(new BorderLayout(5, 0));
+        inputPanel.setBackground(BG_CONTENT);
+
+        JTextField nameField = new JTextField(oldTag);
+        nameField.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        nameField.setPreferredSize(new Dimension(300, 32));
+        nameField.setCaretPosition(nameField.getText().length());
+
+        inputPanel.add(nameField, BorderLayout.CENTER);
+
+        // 按钮面板
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        buttonPanel.setBackground(BG_CONTENT);
+
+        JButton cancelButton = new JButton("取消");
+        cancelButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        cancelButton.setPreferredSize(new Dimension(80, 32));
+        cancelButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        cancelButton.setFocusPainted(false);
+        cancelButton.addActionListener(e -> dialog.dispose());
+
+        JButton confirmButton = new JButton("确定");
+        confirmButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        confirmButton.setPreferredSize(new Dimension(80, 32));
+        confirmButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        confirmButton.setFocusPainted(false);
+        confirmButton.addActionListener(e -> {
+            String newTag = nameField.getText().trim();
+            if (newTag.isEmpty()) {
+                showError("标签名不能为空");
+                return;
+            }
+            if (newTag.equals(oldTag)) {
+                dialog.dispose();
+                return;
+            }
+            if (newTag.matches(".*[\\\\/:*?\"<>|\\[\\]【】].*")) {
+                showError("标签名包含非法字符");
+                return;
+            }
+
+            // 更新配置中的标签名
+            ConfigUtil.reload();
+            List<String> configTags = new ArrayList<>(Config.tags);
+            boolean found = false;
+            for (int i = 0; i < configTags.size(); i++) {
+                if (configTags.get(i).equals(oldTag)) {
+                    configTags.set(i, newTag);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                dialog.dispose();
+                return;
+            }
+            Config.tags = configTags;
+
+            // 更新自定义颜色映射
+            if (TagColorManager.hasCustomColor(oldTag)) {
+                Color color = TagColorManager.getTagColor(oldTag);
+                TagColorManager.setTagColor(newTag, color);
+                TagColorManager.clearColor(oldTag);
+            }
+
+            ConfigUtil.save();
+
+            // 更新列表模型
+            for (int i = 0; i < tagListModel.size(); i++) {
+                if (tagListModel.get(i).equals(oldTag)) {
+                    tagListModel.set(i, newTag);
+                    break;
+                }
+            }
+
+            // 批量替换目录下所有文件中的旧标签
+            File dir = new File(dirPath);
+            File[] files = dir.listFiles();
+            int renamed = 0;
+            if (files != null) {
+                for (File file : files) {
+                    if (file.isFile()) {
+                        try {
+                            if (FileUtil.replaceTag(file.toPath(), oldTag, newTag)) {
+                                renamed++;
+                            }
+                        } catch (IOException ex) {
+                            // 单个文件失败不影响其他文件
+                        }
+                    }
+                }
+            }
+
+            dialog.dispose();
+            refreshAction.run();
+            showSuccess("标签已重命名，已更新 " + renamed + " 个文件");
+        });
+
+        // 回车键确认 / ESC键取消
+        nameField.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                    confirmButton.doClick();
+                } else if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+                    dialog.dispose();
+                }
+            }
+        });
+
+        buttonPanel.add(cancelButton);
+        buttonPanel.add(confirmButton);
+
+        mainPanel.add(infoPanel, BorderLayout.NORTH);
+        mainPanel.add(inputPanel, BorderLayout.CENTER);
+        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
+
+        dialog.setContentPane(mainPanel);
+        dialog.pack();
+        dialog.setLocationRelativeTo(tagJList);
         dialog.setVisible(true);
     }
 
