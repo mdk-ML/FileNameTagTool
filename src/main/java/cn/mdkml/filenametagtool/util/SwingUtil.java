@@ -1259,16 +1259,6 @@ public final class SwingUtil {
 
         ConfigUtil.reload();
 
-        // ==================== 上部：Everything 路径配置 ====================
-        JPanel pathPanel = new JPanel(new BorderLayout(8, 0));
-        pathPanel.setBackground(BG_CONTENT);
-        pathPanel.setBorder(BorderFactory.createTitledBorder("Everything 工具路径"));
-
-        JTextField pathField = new JTextField(Config.everythingPath);
-        pathField.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
-        pathField.setPreferredSize(new Dimension(400, 32));
-        pathPanel.add(pathField, BorderLayout.CENTER);
-
         // ==================== 标签包裹符号配置 ====================
         JPanel bracketPanel = new JPanel(new BorderLayout(8, 0));
         bracketPanel.setBackground(BG_CONTENT);
@@ -1505,10 +1495,7 @@ public final class SwingUtil {
         JPanel centerPanel = new JPanel();
         centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
         centerPanel.setBackground(BG_CONTENT);
-        pathPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, pathPanel.getPreferredSize().height + 10));
         bracketPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, bracketPanel.getPreferredSize().height + 10));
-        centerPanel.add(pathPanel);
-        centerPanel.add(Box.createVerticalStrut(10));
         centerPanel.add(bracketPanel);
         centerPanel.add(Box.createVerticalStrut(10));
         centerPanel.add(tagsContainer);
@@ -1531,7 +1518,6 @@ public final class SwingUtil {
         saveButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
         saveButton.setFocusPainted(false);
         saveButton.addActionListener(e -> {
-            Config.everythingPath = pathField.getText().trim();
             Config.tagBracketStyle = bracketRadio.isSelected() ? Config.STYLE_BRACKET : Config.STYLE_FULLWIDTH;
             Config.tags = Collections.list(tagListModel.elements());
             ConfigUtil.save();
@@ -1544,7 +1530,6 @@ public final class SwingUtil {
         applyButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
         applyButton.setFocusPainted(false);
         applyButton.addActionListener(e -> {
-            Config.everythingPath = pathField.getText().trim();
             Config.tagBracketStyle = bracketRadio.isSelected() ? Config.STYLE_BRACKET : Config.STYLE_FULLWIDTH;
             Config.tags = Collections.list(tagListModel.elements());
             ConfigUtil.save();
@@ -1584,7 +1569,6 @@ public final class SwingUtil {
                 tagListModel.addElement(tag);
             }
 
-            Config.everythingPath = pathField.getText().trim();
             Config.tagBracketStyle = bracketRadio.isSelected() ? Config.STYLE_BRACKET : Config.STYLE_FULLWIDTH;
             Config.tags = Collections.list(tagListModel.elements());
             ConfigUtil.save();

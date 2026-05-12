@@ -19,7 +19,6 @@ public class Config {
     public static final String KEY_GROUP_TAGS_WINDOW_Y = "groupTagsWindowY";
     public static final String KEY_GROUP_TAGS_WINDOW_WIDTH = "groupTagsWindowWidth";
     public static final String KEY_GROUP_TAGS_WINDOW_HEIGHT = "groupTagsWindowHeight";
-    public static final String KEY_EVERYTHING_PATH = "everythingPath";
     public static final String KEY_ICON_PATH = "iconPath";
     public static final String KEY_TAGS = "tag";
     /** 添加标签页-左右分隔线位置（历史标签 / 文件+自定义标签） */
@@ -52,7 +51,6 @@ public class Config {
     public static int groupTagsWindowY = 0;
     public static int groupTagsWindowWidth = 0;
     public static int groupTagsWindowHeight = 0;
-    public static String everythingPath = "C:/Program Files/Everything/Everything.exe";
     public static String iconPath = "C:/Users/MU/Documents/FileNameTagTool/ico/";
     public static List<String> tags = new ArrayList<>();
     /** 添加标签页-左右分隔线位置 */

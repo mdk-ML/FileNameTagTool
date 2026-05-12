@@ -111,7 +111,6 @@ public final class ConfigUtil {
         Config.groupTagsWindowY = getInt(Config.KEY_GROUP_TAGS_WINDOW_Y, Config.groupTagsWindowY);
         Config.groupTagsWindowWidth = getInt(Config.KEY_GROUP_TAGS_WINDOW_WIDTH, Config.groupTagsWindowWidth);
         Config.groupTagsWindowHeight = getInt(Config.KEY_GROUP_TAGS_WINDOW_HEIGHT, Config.groupTagsWindowHeight);
-        Config.everythingPath = properties.getProperty(Config.KEY_EVERYTHING_PATH, Config.everythingPath);
         Config.iconPath = properties.getProperty(Config.KEY_ICON_PATH, Config.iconPath);
         Config.tags = getList(Config.KEY_TAGS, Config.DELIMITER);
         Config.addTagHorizontalDivider = getInt(Config.KEY_ADD_TAG_HORIZONTAL_DIVIDER, Config.addTagHorizontalDivider);
@@ -276,9 +275,6 @@ public final class ConfigUtil {
             writePropertyLine(writer, "# 标签管理窗口位置和大小", Config.KEY_GROUP_TAGS_WINDOW_HEIGHT, String.valueOf(Config.groupTagsWindowHeight));
             writer.newLine();
 
-            writePropertyLine(writer, "# Everything工具路径", Config.KEY_EVERYTHING_PATH, Config.everythingPath);
-            writer.newLine();
-
             writePropertyLine(writer, "# 图标文件目录路径", Config.KEY_ICON_PATH, Config.iconPath);
             writer.newLine();
 
@@ -330,7 +326,6 @@ public final class ConfigUtil {
         set(Config.KEY_GROUP_TAGS_WINDOW_Y, Config.groupTagsWindowY);
         set(Config.KEY_GROUP_TAGS_WINDOW_WIDTH, Config.groupTagsWindowWidth);
         set(Config.KEY_GROUP_TAGS_WINDOW_HEIGHT, Config.groupTagsWindowHeight);
-        set(Config.KEY_EVERYTHING_PATH, Config.everythingPath);
         set(Config.KEY_ICON_PATH, Config.iconPath);
         set(Config.KEY_TAGS, Config.tags, Config.DELIMITER);
         set(Config.KEY_ADD_TAG_HORIZONTAL_DIVIDER, Config.addTagHorizontalDivider);
