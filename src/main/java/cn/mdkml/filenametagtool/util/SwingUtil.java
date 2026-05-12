@@ -1151,30 +1151,34 @@ public final class SwingUtil {
             }
         });
 
-        JButton removeButton = new JButton("移除标签");
-        removeButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
-        removeButton.setPreferredSize(new Dimension(removeButton.getPreferredSize().width + 20, 36));
-        removeButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        removeButton.setFocusPainted(false);
-        removeButton.addActionListener(e -> {
-            // 收集自定义输入的标签
-            String typed = input.getText();
-            if (typed.equals(placeholderText)) {
-                typed = "";
-            }
-            List<String> customTags = splitTags(typed);
-
-            if (customTags.isEmpty()) {
-                showMessage("请输入要移除的标签");
-                return;
-            }
-
+        JButton removeAllTagsButton = new JButton("移除所有标签");
+        removeAllTagsButton.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        removeAllTagsButton.setPreferredSize(new Dimension(removeAllTagsButton.getPreferredSize().width + 20, 36));
+        removeAllTagsButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        removeAllTagsButton.setFocusPainted(false);
+        removeAllTagsButton.addActionListener(e -> {
             if (selectedFiles.isEmpty()) {
                 showMessage("请先选择要移除标签的文件");
                 return;
             }
 
-            performRemove(selectedFiles, new LinkedHashSet<>(customTags), refreshAction);
+            int renamed = 0;
+            List<String> failedFiles = new ArrayList<>();
+            for (File file : selectedFiles) {
+                try {
+                    Path filePath = file.toPath();
+                    if (FileUtil.removeAllTags(filePath)) {
+                        renamed++;
+                    }
+                } catch (Exception ex) {
+                    failedFiles.add(file.getName());
+                }
+            }
+            if (!failedFiles.isEmpty()) {
+                showError("以下文件移除标签失败：\n" + String.join("\n", failedFiles));
+            }
+            showSuccess("成功从 " + renamed + " 个文件中移除所有标签");
+            refreshAction.run();
         });
 
         JButton refreshButton = new JButton("刷新");
@@ -1185,7 +1189,7 @@ public final class SwingUtil {
         refreshButton.addActionListener(e -> refreshAction.run());
 
         buttonPanel.add(addButton);
-        buttonPanel.add(removeButton);
+        buttonPanel.add(removeAllTagsButton);
         buttonPanel.add(refreshButton);
         panel.add(buttonPanel, BorderLayout.SOUTH);
 
