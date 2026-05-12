@@ -2,6 +2,7 @@ package cn.mdkml.filenametagtool;
 
 import cn.mdkml.filenametagtool.model.Action;
 import cn.mdkml.filenametagtool.model.Parsed;
+import cn.mdkml.filenametagtool.util.FileUtil;
 import cn.mdkml.filenametagtool.util.SwingUtil;
 import cn.mdkml.filenametagtool.util.ConfigUtil;
 
@@ -49,20 +50,18 @@ public class FileNameTagToolTest {
             System.out.println("没有获取到有效的文件/文件夹路径。");
         }
     }
-    /**
-     * 模拟 add 命令，打开标签管理窗口并自动切换到添加标签页、选中指定文件。
-     */
-    public static void testAdd() {
+    public static void testNewVersion() {
         SwingUtil.initLookAndFeel();
         ConfigUtil.init();
 
         String[] args = {
-            "add",
-            "C:\\Users\\MU\\Desktop\\PMP\\999-PMP各种文件模板参考大全.pdf"
+            "newVersion",
+            "C:\\Users\\MU\\Desktop\\PMP\\880视频课程（周子裕、李凤兰）\\第14章 其他敏捷实践.pdf"
         };
 
         final Parsed parsed = Parsed.parseArgs(args);
 
+        // 过滤出实际存在的文件路径
         final List<Path> existing = parsed.paths.stream()
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
@@ -72,25 +71,35 @@ public class FileNameTagToolTest {
                 .distinct()
                 .toList();
 
-        if (!existing.isEmpty() && parsed.action == Action.ADD) {
-            Path firstFile = existing.get(0);
-            Path dir = firstFile.getParent();
-            if (dir != null) {
-                // initialTab = 1 对应添加标签页，filesToSelect 自动选中目标文件
-                SwingUtil.createTagManagerWindow(dir.toString(), 1, existing);
+        if (!existing.isEmpty() && parsed.action == Action.NEW_VERSION) {
+            try {
+                int renamed = 0;
+                int skipped = 0;
+                for (Path path : existing) {
+                    try {
+                        if (FileUtil.createNewVersion(path)) {
+                            renamed++;
+                        } else {
+                            skipped++;
+                        }
+                    } catch (Exception e) {
+                        skipped++;
+                    }
+                }
+                SwingUtil.showSuccess("选择项：" + existing.size() + "\n成功重命名：" + renamed + "\n跳过/失败：" + skipped);
+            } catch (Exception e) {
+                SwingUtil.showError(String.valueOf(e));
             }
         } else {
             System.out.println("没有获取到有效的文件/文件夹路径。");
         }
     }
-
     /**
      * 测试入口。
      *
      * @param args 命令行参数（未使用）
      */
     public static void main(String[] args) {
-         testSearch();
-//        testAdd();
+        testNewVersion();
     }
 }

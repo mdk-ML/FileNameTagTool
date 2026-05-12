@@ -6,12 +6,8 @@ package cn.mdkml.filenametagtool.model;
  * 定义了文件名标签工具支持的所有操作类型，每个枚举值对应一个命令行参数名称
  */
 public enum Action {
-    /** 添加标签到文件名前缀 */
-    ADD("add"),
     /** 移除文件名中的所有标签 */
     REMOVE_ALL("removeAll"),
-    /** 移除文件名中的指定标签 */
-    REMOVE("remove"),
     /** 创建文件的新版本 */
     NEW_VERSION("newVersion"),
     /** 复制文件并去除标签 */

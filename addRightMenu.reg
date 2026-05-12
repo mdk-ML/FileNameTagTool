@@ -6,9 +6,10 @@ Windows Registry Editor Version 5.00
 [HKEY_CLASSES_ROOT\*\shell\TagMenu]
 "MUIVerb"="文件标签"
 "Icon"="C:\\Users\\MU\\Documents\\FileNameTagTool\\ico\\tags.ico"
-"SubCommands"="TagMenu.Add;TagMenu.newVersion;TagMenu.Remove;TagMenu.RemoveAll;TagMenu.copyWithoutTags;"
+"SubCommands"="TagMenu.newVersion;TagMenu.RemoveAll;TagMenu.copyWithoutTags;"
 "MultiSelectModel"="Player"
 "CommandTemplate"=""
+"Position"="Top"
 
 ; =========================
 ; 子命令：移除所有标签（removeAll）
@@ -18,27 +19,7 @@ Windows Registry Editor Version 5.00
 "Icon"="C:\\Users\\MU\\Documents\\FileNameTagTool\\ico\\removeAll.ico"
 
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\TagMenu.RemoveAll\command]
-@="\"C:\\Program Files\\Java\\jdk-17\\bin\\javaw.exe\" -jar \"C:\\Users\\MU\\Documents\\FileNameTagTool\\target\\filename-tagtool-1.0.0.jar\" removeAll %L"
-
-; =========================
-; 子命令：移除标签（remove）
-; =========================
-[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\TagMenu.Remove]
-"MUIVerb"="移除标签"
-"Icon"="C:\\Users\\MU\\Documents\\FileNameTagTool\\ico\\remove.ico"
-
-[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\TagMenu.Remove\command]
-@="\"C:\\Program Files\\Java\\jdk-17\\bin\\javaw.exe\" -jar \"C:\\Users\\MU\\Documents\\FileNameTagTool\\target\\filename-tagtool-1.0.0.jar\" remove %L"
-
-; =========================
-; 子命令：添加标签（add）
-; =========================
-[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\TagMenu.Add]
-"MUIVerb"="添加标签"
-"Icon"="C:\\Users\\MU\\Documents\\FileNameTagTool\\ico\\add.ico"
-
-[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\TagMenu.Add\command]
-@="\"C:\\Program Files\\Java\\jdk-17\\bin\\javaw.exe\" -jar \"C:\\Users\\MU\\Documents\\FileNameTagTool\\target\\filename-tagtool-1.0.0.jar\" add %L"
+@="\"C:\\Program Files\\Java\\jdk-17\\bin\\javaw.exe\" -jar \"C:\\Users\\MU\\Documents\\FileNameTagTool\\target\\filename-tagtool-1.0.0.jar\" removeAll \"%L\""
 
 ; =========================
 ; 子命令：创建无标签副本 copyWithoutTags
@@ -48,7 +29,7 @@ Windows Registry Editor Version 5.00
 "Icon"="C:\\Users\\MU\\Documents\\FileNameTagTool\\ico\\copyWithoutTags.ico"
 
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\TagMenu.copyWithoutTags\command]
-@="\"C:\\Program Files\\Java\\jdk-17\\bin\\javaw.exe\" -jar \"C:\\Users\\MU\\Documents\\FileNameTagTool\\target\\filename-tagtool-1.0.0.jar\" copyWithoutTags %L"
+@="\"C:\\Program Files\\Java\\jdk-17\\bin\\javaw.exe\" -jar \"C:\\Users\\MU\\Documents\\FileNameTagTool\\target\\filename-tagtool-1.0.0.jar\" copyWithoutTags \"%L\""
 ; =========================
 ; 子命令：生成新版本 newVersion 
 ; =========================
@@ -57,7 +38,7 @@ Windows Registry Editor Version 5.00
 "Icon"="C:\\Users\\MU\\Documents\\FileNameTagTool\\ico\\newVersion.ico"
 
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell\TagMenu.newVersion\command]
-@="\"C:\\Program Files\\Java\\jdk-17\\bin\\javaw.exe\" -jar \"C:\\Users\\MU\\Documents\\FileNameTagTool\\target\\filename-tagtool-1.0.0.jar\" newVersion %L"
+@="\"C:\\Program Files\\Java\\jdk-17\\bin\\javaw.exe\" -jar \"C:\\Users\\MU\\Documents\\FileNameTagTool\\target\\filename-tagtool-1.0.0.jar\" newVersion \"%L\""
 
 ; =========================
 ; 目录背景右键菜单：文件标签
@@ -65,6 +46,7 @@ Windows Registry Editor Version 5.00
 [HKEY_CLASSES_ROOT\Directory\Background\shell\TagMenu.ManageTags]
 "MUIVerb"="管理此目录的文件标签"
 "Icon"="C:\\Users\\MU\\Documents\\FileNameTagTool\\ico\\tags.ico"
+"Position"="Top"
 
 [HKEY_CLASSES_ROOT\Directory\Background\shell\TagMenu.ManageTags\command]
 @="\"C:\\Program Files\\Java\\jdk-17\\bin\\javaw.exe\" -jar \"C:\\Users\\MU\\Documents\\FileNameTagTool\\target\\filename-tagtool-1.0.0.jar\" manage \"%V\""
@@ -75,6 +57,7 @@ Windows Registry Editor Version 5.00
 [HKEY_CLASSES_ROOT\Directory\shell\TagMenu.ManageTags]
 "MUIVerb"="管理当前目录的文件标签"
 "Icon"="C:\\Users\\MU\\Documents\\FileNameTagTool\\ico\\tags.ico"
+"Position"="Top"
 
 [HKEY_CLASSES_ROOT\Directory\shell\TagMenu.ManageTags\command]
-@="\"C:\\Program Files\\Java\\jdk-17\\bin\\javaw.exe\" -jar \"C:\\Users\\MU\\Documents\\FileNameTagTool\\target\\filename-tagtool-1.0.0.jar\" manage %L"
+@="\"C:\\Program Files\\Java\\jdk-17\\bin\\javaw.exe\" -jar \"C:\\Users\\MU\\Documents\\FileNameTagTool\\target\\filename-tagtool-1.0.0.jar\" manage \"%L\""

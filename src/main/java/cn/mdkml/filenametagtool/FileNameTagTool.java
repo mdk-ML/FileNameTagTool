@@ -2,7 +2,6 @@ package cn.mdkml.filenametagtool;
 
 import cn.mdkml.filenametagtool.model.Action;
 import cn.mdkml.filenametagtool.model.Parsed;
-import cn.mdkml.filenametagtool.model.TabIndex;
 import cn.mdkml.filenametagtool.util.ConfigUtil;
 import cn.mdkml.filenametagtool.util.FileUtil;
 import cn.mdkml.filenametagtool.util.SwingUtil;
@@ -32,12 +31,22 @@ public final class FileNameTagTool {
         SwingUtil.initLookAndFeel();
         ConfigUtil.init();
 
+        // 输出传入参数，方便测试和验证
+//        StringBuilder sb = new StringBuilder("传入参数（共 " + args.length + " 个）：\n");
+//        for (int i = 0; i < args.length; i++) {
+//            sb.append("args[").append(i).append("]: ").append(args[i]).append("\n");
+//        }
+//        SwingUtil.showError(sb.toString());
+
+        // 修复Windows右键菜单传递中文路径时的编码问题
+//        String[] fixedArgs = fixArgsEncoding(args);
+
         final Parsed parsed = Parsed.parseArgs(args);
         if (parsed.action == null) {
-            SwingUtil.showMessage("缺少动作参数，请用：add | removeAll | newVersion | copyWithoutTags。");
+            SwingUtil.showMessage("缺少动作参数，请用：removeAll | newVersion | copyWithoutTags。");
             return;
         }
-
+//        SwingUtil.showError(parsed.action+parsed.paths.get(0));
         final Action action = parsed.action;
         // 过滤出实际存在的文件路径，去重
         final List<Path> existing = parsed.paths.stream()
@@ -57,18 +66,6 @@ public final class FileNameTagTool {
         // 标签管理模式：打开标签管理窗口
         if (action == Action.MANAGE) {
             SwingUtil.createTagManagerWindow(existing.get(0).toString());
-            return;
-        }
-
-        // 添加/移除标签模式：打开标签管理窗口，自动切换到统一标签管理页并选中文件
-        if (action == Action.ADD || action == Action.REMOVE) {
-            Path firstFile = existing.get(0);
-            Path dir = firstFile.getParent();
-            if (dir == null) {
-                SwingUtil.showError("无法获取文件所在目录");
-                return;
-            }
-            SwingUtil.createTagManagerWindow(dir.toString(), TabIndex.UNIFIED_TAG, existing);
             return;
         }
 
