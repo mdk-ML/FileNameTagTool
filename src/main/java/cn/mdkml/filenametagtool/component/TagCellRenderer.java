@@ -439,12 +439,12 @@ public class TagCellRenderer extends JPanel implements TableCellRenderer {
         }
 
         String tagStr = table.getValueAt(row, 1).toString();
-        if (tagStr == null || tagStr.toString().isEmpty()) {
+        if (tagStr == null || tagStr.isEmpty()) {
             return false;
         }
 
         List<String> tagList = new ArrayList<>();
-        for (String t : tagStr.toString().split(",")) {
+        for (String t : tagStr.split(",")) {
             String trimmed = t.trim();
             if (!trimmed.isEmpty()) {
                 tagList.add(trimmed);
@@ -495,12 +495,12 @@ public class TagCellRenderer extends JPanel implements TableCellRenderer {
         }
 
         String tagStr = table.getValueAt(row, 1).toString();
-        if (tagStr == null || tagStr.toString().isEmpty()) {
+        if (tagStr == null || tagStr.isEmpty()) {
             return -1;
         }
 
         List<String> tagList = new ArrayList<>();
-        for (String t : tagStr.toString().split(",")) {
+        for (String t : tagStr.split(",")) {
             String trimmed = t.trim();
             if (!trimmed.isEmpty()) {
                 tagList.add(trimmed);

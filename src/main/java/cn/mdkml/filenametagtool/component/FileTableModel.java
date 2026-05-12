@@ -8,7 +8,6 @@ import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.List;
 
 /**
  * 文件列表表格模型，支持多关键词搜索过滤、相关度排序和按列排序。
@@ -136,7 +135,9 @@ public class FileTableModel extends AbstractTableModel {
                 int scoreA = calculateRelevance(a);
                 int scoreB = calculateRelevance(b);
                 int cmp = Integer.compare(scoreB, scoreA);
-                if (cmp != 0) return cmp;
+                if (cmp != 0) {
+                    return cmp;
+                }
                 return compareEntries(a, b, sortColumn, sortAscending);
             });
         } else {
@@ -148,6 +149,12 @@ public class FileTableModel extends AbstractTableModel {
         fireTableDataChanged();
     }
 
+    /**
+     * 检查文件条目是否匹配所有搜索关键词
+     *
+     * @param entry 文件条目
+     * @return 是否匹配所有关键词
+     */
     private boolean matchesAllKeywords(FileEntry entry) {
         String lowerName = entry.file.getName().toLowerCase();
         for (String kw : searchKeywords) {
@@ -158,6 +165,12 @@ public class FileTableModel extends AbstractTableModel {
         return true;
     }
 
+    /**
+     * 计算文件条目与搜索关键词的相关度分数
+     *
+     * @param entry 文件条目
+     * @return 相关度分数，越高越相关
+     */
     private int calculateRelevance(FileEntry entry) {
         String lowerName = entry.file.getName().toLowerCase();
         int score = 0;
@@ -168,7 +181,9 @@ public class FileTableModel extends AbstractTableModel {
             if (idx >= 0) {
                 matchedCount++;
                 score += 100;
-                if (idx == 0) score += 50;
+                if (idx == 0) {
+                    score += 50;
+                }
                 int count = 0;
                 int from = 0;
                 while ((from = lowerName.indexOf(lowerKeyword, from)) >= 0) {
@@ -183,6 +198,15 @@ public class FileTableModel extends AbstractTableModel {
         return score;
     }
 
+    /**
+     * 比较两个文件条目，支持按指定列和排序方向进行比较
+     *
+     * @param a         第一个文件条目
+     * @param b         第二个文件条目
+     * @param column    排序列索引
+     * @param ascending 是否升序
+     * @return 比较结果
+     */
     private int compareEntries(FileEntry a, FileEntry b, int column, boolean ascending) {
         int cmp = 0;
         switch (column) {
@@ -191,14 +215,18 @@ public class FileTableModel extends AbstractTableModel {
                 break;
             case 1: // 标签 - 按配置中的标签顺序排序
                 cmp = compareTagsByConfigOrder(a.file.getName(), b.file.getName());
-                if (cmp == 0) cmp = a.file.getName().compareToIgnoreCase(b.file.getName());
+                if (cmp == 0) {
+                    cmp = a.file.getName().compareToIgnoreCase(b.file.getName());
+                }
                 break;
             case 2: // 修改日期
                 cmp = Long.compare(a.file.lastModified(), b.file.lastModified());
                 break;
             case 3: // 类型
                 cmp = a.type.compareToIgnoreCase(b.type);
-                if (cmp == 0) cmp = a.file.getName().compareToIgnoreCase(b.file.getName());
+                if (cmp == 0) {
+                    cmp = a.file.getName().compareToIgnoreCase(b.file.getName());
+                }
                 break;
             case 4: // 大小
                 cmp = Long.compare(a.file.length(), b.file.length());
@@ -274,7 +302,9 @@ public class FileTableModel extends AbstractTableModel {
 
     @Override
     public Object getValueAt(int rowIndex, int columnIndex) {
-        if (rowIndex < 0 || rowIndex >= displayedEntries.size()) return "";
+        if (rowIndex < 0 || rowIndex >= displayedEntries.size()) {
+            return "";
+        }
         FileEntry entry = displayedEntries.get(rowIndex);
         switch (columnIndex) {
             case 0: { // 名称（过滤标签，显示纯文件名）
@@ -318,9 +348,15 @@ public class FileTableModel extends AbstractTableModel {
     }
 
     private static String formatFileSize(long bytes) {
-        if (bytes < 1024) return bytes + " B";
-        if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
-        if (bytes < 1024 * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024));
+        if (bytes < 1024) {
+            return bytes + " B";
+        }
+        if (bytes < 1024 * 1024) {
+            return String.format("%.1f KB", bytes / 1024.0);
+        }
+        if (bytes < 1024 * 1024 * 1024) {
+            return String.format("%.1f MB", bytes / (1024.0 * 1024));
+        }
         return String.format("%.1f GB", bytes / (1024.0 * 1024 * 1024));
     }
 

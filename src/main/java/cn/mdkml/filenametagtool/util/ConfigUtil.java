@@ -350,10 +350,14 @@ public final class ConfigUtil {
      * @return 逗号分隔的字符串
      */
     private static String intArrayToString(int[] arr) {
-        if (arr == null || arr.length == 0) return "";
+        if (arr == null || arr.length == 0) {
+            return "";
+        }
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < arr.length; i++) {
-            if (i > 0) sb.append(",");
+            if (i > 0) {
+                sb.append(",");
+            }
             sb.append(arr[i]);
         }
         return sb.toString();
@@ -395,7 +399,9 @@ public final class ConfigUtil {
     private static String getTagColorsString() {
         StringBuilder sb = new StringBuilder();
         for (var entry : Config.tagColors.entrySet()) {
-            if (sb.length() > 0) sb.append(",");
+            if (sb.length() > 0) {
+                sb.append(",");
+            }
             sb.append(entry.getKey()).append(":").append(colorToHex(entry.getValue()));
         }
         return sb.toString();

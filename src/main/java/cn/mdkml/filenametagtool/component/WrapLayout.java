@@ -96,7 +96,9 @@ public class WrapLayout extends FlowLayout {
 
             // 遍历所有组件，计算布局尺寸
             for (Component comp : target.getComponents()) {
-                if (!comp.isVisible()) continue; // 跳过不可见组件
+                if (!comp.isVisible()) {
+                    continue;
+                }
                 Dimension dim = isPreferred ? comp.getPreferredSize() : comp.getMinimumSize();
                 maxCompWidth = Math.max(maxCompWidth, dim.width); // 记录最大组件宽度
 

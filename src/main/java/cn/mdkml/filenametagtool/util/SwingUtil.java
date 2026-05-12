@@ -10,8 +10,12 @@ import cn.mdkml.filenametagtool.model.TabIndex;
 import javax.swing.*;
 import javax.swing.Timer;
 import javax.swing.border.TitledBorder;
+import javax.swing.event.ChangeEvent;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.TableColumnModelEvent;
+import javax.swing.event.TableColumnModelListener;
 import java.awt.*;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
@@ -619,21 +623,21 @@ public final class SwingUtil {
         }
 
         // 列宽拖拽保存
-        fileTable.getColumnModel().addColumnModelListener(new javax.swing.event.TableColumnModelListener() {
+        fileTable.getColumnModel().addColumnModelListener(new TableColumnModelListener() {
             @Override
-            public void columnAdded(javax.swing.event.TableColumnModelEvent e) {
+            public void columnAdded(TableColumnModelEvent e) {
             }
 
             @Override
-            public void columnRemoved(javax.swing.event.TableColumnModelEvent e) {
+            public void columnRemoved(TableColumnModelEvent e) {
             }
 
             @Override
-            public void columnMoved(javax.swing.event.TableColumnModelEvent e) {
+            public void columnMoved(TableColumnModelEvent e) {
             }
 
             @Override
-            public void columnMarginChanged(javax.swing.event.ChangeEvent e) {
+            public void columnMarginChanged(ChangeEvent e) {
                 for (int i = 0; i < Math.min(fileTable.getColumnCount(), Config.fileColumnWidths.length); i++) {
                     Config.fileColumnWidths[i] = fileTable.getColumnModel().getColumn(i).getWidth();
                 }
@@ -641,7 +645,7 @@ public final class SwingUtil {
             }
 
             @Override
-            public void columnSelectionChanged(javax.swing.event.ListSelectionEvent e) {
+            public void columnSelectionChanged(ListSelectionEvent e) {
             }
         });
 
@@ -672,7 +676,9 @@ public final class SwingUtil {
             @Override
             public void mouseClicked(MouseEvent e) {
                 int col = fileTable.getTableHeader().columnAtPoint(e.getPoint());
-                if (col < 0) return;
+                if (col < 0) {
+                    return;
+                }
                 boolean ascending;
                 if (col == tableModel.getSortColumn()) {
                     ascending = !tableModel.isSortAscending();
@@ -903,13 +909,17 @@ public final class SwingUtil {
 
         // 表格选择同步到 selectedFiles
         fileTable.getSelectionModel().addListSelectionListener(e -> {
-            if (e.getValueIsAdjusting()) return;
+            if (e.getValueIsAdjusting()) {
+                return;
+            }
             selectedFiles.clear();
             int[] rows = fileTable.getSelectedRows();
             for (int row : rows) {
                 int modelRow = fileTable.convertRowIndexToModel(row);
                 File f = tableModel.getFileAt(modelRow);
-                if (f != null) selectedFiles.add(f);
+                if (f != null) {
+                    selectedFiles.add(f);
+                }
             }
             updateStatusBar.run();
         });
@@ -1013,7 +1023,9 @@ public final class SwingUtil {
             for (int i = 0; i < tableModel.getRowCount(); i++) {
                 if (selectNames.contains(tableModel.getValueAt(i, 0))) {
                     int viewRow = fileTable.convertRowIndexToView(i);
-                    if (viewRow >= 0) fileTable.addRowSelectionInterval(viewRow, viewRow);
+                    if (viewRow >= 0) {
+                        fileTable.addRowSelectionInterval(viewRow, viewRow);
+                    }
                 }
             }
         }
@@ -1826,9 +1838,15 @@ public final class SwingUtil {
      * @return 格式化后的字符串
      */
     private static String formatFileSize(long bytes) {
-        if (bytes < 1024) return bytes + " B";
-        if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
-        if (bytes < 1024 * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024));
+        if (bytes < 1024) {
+            return bytes + " B";
+        }
+        if (bytes < 1024 * 1024) {
+            return String.format("%.1f KB", bytes / 1024.0);
+        }
+        if (bytes < 1024 * 1024 * 1024) {
+            return String.format("%.1f MB", bytes / (1024.0 * 1024));
+        }
         return String.format("%.2f GB", bytes / (1024.0 * 1024 * 1024));
     }
 

@@ -3,6 +3,9 @@ package cn.mdkml.filenametagtool.component;
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 
 /**
  * 支持搜索关键词高亮的表格单元格渲染器。
@@ -11,9 +14,12 @@ import java.awt.*;
 public class HighlightCellRenderer extends DefaultTableCellRenderer {
 
     private String[] keywords = new String[0];
-    private static final Color HIGHLIGHT_BG = new Color(255, 235, 59);
-    private static final Color HIGHLIGHT_TEXT = Color.BLACK;
 
+    /**
+     * 设置需要高亮的搜索关键词
+     *
+     * @param keywords 关键词数组
+     */
     public void setKeywords(String[] keywords) {
         this.keywords = keywords != null ? keywords : new String[0];
     }
@@ -34,7 +40,7 @@ public class HighlightCellRenderer extends DefaultTableCellRenderer {
         String lowerText = text.toLowerCase();
 
         // 找出所有匹配区间
-        java.util.List<int[]> highlights = new java.util.ArrayList<>();
+        List<int[]> highlights = new ArrayList<>();
         for (String kw : keywords) {
             String lowerKw = kw.toLowerCase();
             int from = 0;
@@ -50,8 +56,8 @@ public class HighlightCellRenderer extends DefaultTableCellRenderer {
         }
 
         // 合并重叠区间
-        highlights.sort(java.util.Comparator.comparingInt(a -> a[0]));
-        java.util.List<int[]> merged = new java.util.ArrayList<>();
+        highlights.sort(Comparator.comparingInt(a -> a[0]));
+        List<int[]> merged = new ArrayList<>();
         for (int[] interval : highlights) {
             if (merged.isEmpty() || merged.get(merged.size() - 1)[1] < interval[0]) {
                 merged.add(interval);

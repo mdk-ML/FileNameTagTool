@@ -79,35 +79,4 @@ public class BadgeToggleButton extends JToggleButton {
         int textY = y + (badgeHeight - metrics.getHeight()) / 2 + metrics.getAscent();
         g2d.drawString(text, textX, textY);
     }
-
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            JFrame frame = new JFrame("JToggleButton 徽标演示");
-            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            frame.setSize(450, 200);
-            frame.setLayout(new FlowLayout(FlowLayout.CENTER, 30, 50));
-
-            BadgeToggleButton btn1 = new BadgeToggleButton("消息");
-            btn1.setBadgeNumber(5);
-
-            BadgeToggleButton btn2 = new BadgeToggleButton("通知");
-            btn2.setBadgeNumber(120);
-
-            BadgeToggleButton btn3 = new BadgeToggleButton("设置");
-            btn3.setBadgeNumber(0);
-            btn3.setBadgeColor(Color.BLUE, Color.WHITE);
-
-            Icon icon = UIManager.getIcon("OptionPane.informationIcon");
-            BadgeToggleButton btn4 = new BadgeToggleButton(icon);
-            btn4.setBadgeNumber(9);
-
-            frame.add(btn1);
-            frame.add(btn2);
-            frame.add(btn3);
-            frame.add(btn4);
-
-            frame.setLocationRelativeTo(null);
-            frame.setVisible(true);
-        });
-    }
 }

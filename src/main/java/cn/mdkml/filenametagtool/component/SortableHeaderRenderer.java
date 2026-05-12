@@ -22,10 +22,21 @@ public class SortableHeaderRenderer extends DefaultTableCellRenderer {
         setHorizontalAlignment(SwingConstants.LEFT);
     }
 
+    /**
+     * 设置当前鼠标悬停的列索引，用于悬停高亮效果
+     *
+     * @param column 列索引（-1 表示无悬停）
+     */
     public void setHoverColumn(int column) {
         this.hoverColumn = column;
     }
 
+    /**
+     * 设置当前排序状态，用于显示排序箭头指示器
+     *
+     * @param column    排序列索引（-1 表示无排序）
+     * @param ascending 是否升序
+     */
     public void setSortState(int column, boolean ascending) {
         this.sortColumn = column;
         this.sortAscending = ascending;

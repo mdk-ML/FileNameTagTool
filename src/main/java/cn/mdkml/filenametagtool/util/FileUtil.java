@@ -8,9 +8,11 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public final class FileUtil {
@@ -94,7 +96,7 @@ public final class FileUtil {
         String rest = getAllTagsPattern().matcher(base).replaceAll("");
 
         // 合并已有标签和新标签
-        java.util.LinkedHashSet<String> merged = new java.util.LinkedHashSet<>();
+        LinkedHashSet<String> merged = new LinkedHashSet<>();
         for (String tag : addTags) {
             if (!containsIgnoreCase(merged, tag)) {
                 merged.add(tag);
@@ -176,12 +178,18 @@ public final class FileUtil {
     public static boolean removeAllTags(Path path) throws IOException {
         Path parent = path.getParent();
         Path fileName = path.getFileName();
-        if (parent == null || fileName == null) return false;
+        if (parent == null || fileName == null) {
+            return false;
+        }
 
         String leaf = fileName.toString();
         String newLeaf = removeTagsFromLeafPreserveExt(leaf);
-        if (newLeaf.equals(leaf)) return false;
-        if (newLeaf.trim().isEmpty()) return false;
+        if (newLeaf.equals(leaf)) {
+            return false;
+        }
+        if (newLeaf.trim().isEmpty()) {
+            return false;
+        }
 
         Path target = parent.resolve(newLeaf);
         target = ensureNonExisting(target);
@@ -201,7 +209,9 @@ public final class FileUtil {
     public static boolean removeTags(Path path, Set<String> tagsToRemove) throws IOException {
         Path parent = path.getParent();
         Path fileName = path.getFileName();
-        if (parent == null || fileName == null) return false;
+        if (parent == null || fileName == null) {
+            return false;
+        }
 
         String leaf = fileName.toString();
         int dot = leaf.lastIndexOf('.');
@@ -217,8 +227,12 @@ public final class FileUtil {
         }
         String rest = getAllTagsPattern().matcher(base).replaceAll("");
         String newLeaf = buildOrderedName(rest, remaining) + ext;
-        if (newLeaf.equals(leaf)) return false;
-        if (newLeaf.trim().isEmpty()) return false;
+        if (newLeaf.equals(leaf)) {
+            return false;
+        }
+        if (newLeaf.trim().isEmpty()) {
+            return false;
+        }
 
         Path target = parent.resolve(newLeaf);
         target = ensureNonExisting(target);
@@ -237,7 +251,9 @@ public final class FileUtil {
     public static boolean createNewVersion(Path path) throws IOException {
         Path parent = path.getParent();
         Path fileName = path.getFileName();
-        if (parent == null || fileName == null) return false;
+        if (parent == null || fileName == null) {
+            return false;
+        }
 
         String leaf = fileName.toString();
         int dot = leaf.lastIndexOf('.');
@@ -266,7 +282,9 @@ public final class FileUtil {
         }
 
         String newLeaf = buildOrderedName(rest, tags) + ext;
-        if (newLeaf.equals(leaf)) return false;
+        if (newLeaf.equals(leaf)) {
+            return false;
+        }
 
         Path target = parent.resolve(newLeaf);
         target = ensureNonExisting(target);
@@ -285,11 +303,15 @@ public final class FileUtil {
     public static boolean copyWithoutTags(Path path) throws IOException {
         Path parent = path.getParent();
         Path fileName = path.getFileName();
-        if (parent == null || fileName == null) return false;
+        if (parent == null || fileName == null) {
+            return false;
+        }
 
         String leaf = fileName.toString();
         String newLeaf = removeTagsFromLeafPreserveExt(leaf);
-        if (newLeaf.equals(leaf)) return false;
+        if (newLeaf.equals(leaf)) {
+            return false;
+        }
 
         Path target = parent.resolve(newLeaf);
         target = ensureNonExisting(target);
@@ -367,7 +389,9 @@ public final class FileUtil {
      * @return 确保不存在的路径
      */
     public static Path ensureNonExisting(Path target) {
-        if (!Files.exists(target, LinkOption.NOFOLLOW_LINKS)) return target;
+        if (!Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
+            return target;
+        }
 
         Path parent = target.getParent();
         String leaf = target.getFileName().toString();
@@ -382,7 +406,9 @@ public final class FileUtil {
 
         for (int i = 1; i < 10000; i++) {
             Path candidate = parent.resolve(base + " (" + i + ")" + ext);
-            if (!Files.exists(candidate, LinkOption.NOFOLLOW_LINKS)) return candidate;
+            if (!Files.exists(candidate, LinkOption.NOFOLLOW_LINKS)) {
+                return candidate;
+            }
         }
         return target;
     }
@@ -501,8 +527,8 @@ public final class FileUtil {
      * @return 标签列表
      */
     public static List<String> parseAllTags(String name) {
-        List<String> out = new java.util.ArrayList<>();
-        java.util.regex.Matcher matcher = getAllTagsPattern().matcher(name);
+        List<String> out = new ArrayList<>();
+        Matcher matcher = getAllTagsPattern().matcher(name);
         while (matcher.find()) {
             String tag = matcher.group();
             String left = Config.getTagWrapLeft();
@@ -524,8 +550,8 @@ public final class FileUtil {
      * @return 标签列表
      */
     private static List<String> parseAllTags(String name, String wrapL, String wrapR) {
-        List<String> out = new java.util.ArrayList<>();
-        java.util.regex.Matcher matcher = getTagPattern(wrapL, wrapR).matcher(name);
+        List<String> out = new ArrayList<>();
+        Matcher matcher = getTagPattern(wrapL, wrapR).matcher(name);
         while (matcher.find()) {
             String tag = matcher.group();
             String inner = tag.substring(wrapL.length(), tag.length() - wrapR.length()).trim();
@@ -545,7 +571,9 @@ public final class FileUtil {
      */
     private static boolean containsIgnoreCase(Iterable<String> list, String value) {
         for (String s : list) {
-            if (s != null && value != null && s.equalsIgnoreCase(value)) return true;
+            if (s != null && value != null && s.equalsIgnoreCase(value)) {
+                return true;
+            }
         }
         return false;
     }
