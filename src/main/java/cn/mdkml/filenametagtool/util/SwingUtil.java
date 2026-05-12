@@ -679,9 +679,34 @@ public final class SwingUtil {
                 } else {
                     ascending = true;
                 }
+
+                // 排序前保存当前所有选中的文件对象
+                List<File> previouslySelectedFiles = new ArrayList<>();
+                int[] selectedRows = fileTable.getSelectedRows();
+                for (int row : selectedRows) {
+                    int modelRow = fileTable.convertRowIndexToModel(row);
+                    File file = tableModel.getFileAt(modelRow);
+                    if (file != null) {
+                        previouslySelectedFiles.add(file);
+                    }
+                }
+
+                // 执行排序操作
                 tableModel.setSort(col, ascending);
                 headerRenderer.setSortState(col, ascending);
                 fileTable.getTableHeader().repaint();
+
+                // 恢复之前保存的选中状态
+                fileTable.clearSelection();
+                for (File selectedFile : previouslySelectedFiles) {
+                    int modelRow = tableModel.findRowByFile(selectedFile);
+                    if (modelRow >= 0) {
+                        int viewRow = fileTable.convertRowIndexToView(modelRow);
+                        if (viewRow >= 0) {
+                            fileTable.addRowSelectionInterval(viewRow, viewRow);
+                        }
+                    }
+                }
 
                 Config.fileSortColumn = col;
                 Config.fileSortAscending = ascending;
