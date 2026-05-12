@@ -1371,10 +1371,10 @@ public final class SwingUtil {
                         if (isSpecial) {
                             return;
                         }
-                        Color currentColor = TagColorManager.getTagColor(tag);
+                        Color currentColor = TagUtil.getTagColor(tag);
                         Color newColor = JColorChooser.showDialog(panel, "选择标签 \"" + tag + "\" 的颜色", currentColor);
                         if (newColor != null) {
-                            TagColorManager.setTagColor(tag, newColor);
+                            TagUtil.setTagColor(tag, newColor);
                             ConfigUtil.save();
                             tagJList.repaint();
                             refreshAction.run();
@@ -1400,7 +1400,7 @@ public final class SwingUtil {
         clearColorItem.addActionListener(clearAction -> {
             String tag = rightClickedTag[0];
             if (tag != null) {
-                TagColorManager.clearColor(tag);
+                TagUtil.clearColor(tag);
                 ConfigUtil.save();
                 tagJList.repaint();
                 refreshAction.run();
@@ -1434,7 +1434,7 @@ public final class SwingUtil {
                 // 从列表模型中移除
                 tagListModel.removeElement(tag);
                 // 清除该标签的自定义颜色
-                TagColorManager.clearColor(tag);
+                TagUtil.clearColor(tag);
                 // 保存配置
                 ConfigUtil.save();
                 // 刷新界面
@@ -1673,7 +1673,7 @@ public final class SwingUtil {
                     BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_GRAY),
                     BorderFactory.createEmptyBorder(6, 12, 6, 12)));
 
-            Color bgColor = TagColorManager.getTagColor(text);
+            Color bgColor = TagUtil.getTagColor(text);
 
             // 颜色预览块
             JPanel colorPreview = new JPanel();
@@ -1686,7 +1686,7 @@ public final class SwingUtil {
             tagLabel.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
 
             // 颜色来源提示
-            boolean isCustom = TagColorManager.hasCustomColor(text);
+            boolean isCustom = TagUtil.hasCustomColor(text);
             JLabel sourceLabel = new JLabel(isCustom ? "自定义" : "自动");
             sourceLabel.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 11));
             sourceLabel.setForeground(Color.GRAY);
@@ -2156,10 +2156,10 @@ public final class SwingUtil {
             Config.tags = configTags;
 
             // 更新自定义颜色映射
-            if (TagColorManager.hasCustomColor(oldTag)) {
-                Color color = TagColorManager.getTagColor(oldTag);
-                TagColorManager.setTagColor(newTag, color);
-                TagColorManager.clearColor(oldTag);
+            if (TagUtil.hasCustomColor(oldTag)) {
+                Color color = TagUtil.getTagColor(oldTag);
+                TagUtil.setTagColor(newTag, color);
+                TagUtil.clearColor(oldTag);
             }
 
             ConfigUtil.save();

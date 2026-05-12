@@ -1,6 +1,6 @@
 package cn.mdkml.filenametagtool.component;
 
-import cn.mdkml.filenametagtool.util.TagColorManager;
+import cn.mdkml.filenametagtool.util.TagUtil;
 
 import javax.swing.*;
 import javax.swing.table.TableCellRenderer;
@@ -13,7 +13,7 @@ import java.util.Map;
  * 标签列单元格渲染器
  * <p>
  * 将标签文本渲染为带背景色的小标签样式。
- * 使用 TagColorManager 获取标签的背景颜色。
+ * 使用 TagUtil 获取标签的背景颜色。
  * 支持鼠标悬停时在标签右上角显示删除按钮。
  * </p>
  */
@@ -260,8 +260,8 @@ public class TagCellRenderer extends JPanel implements TableCellRenderer {
 
         for (int i = 0; i < tags.size(); i++) {
             String tag = tags.get(i);
-            Color bgColor = TagColorManager.getTagColor(tag);
-            Color fgColor = TagColorManager.getTagForegroundColor(bgColor);
+            Color bgColor = TagUtil.getTagColor(tag);
+            Color fgColor = TagUtil.getTagForegroundColor(bgColor);
 
             int textWidth = fm.stringWidth(tag);
             int tagWidth = textWidth + TAG_PADDING_H * 2;
@@ -333,8 +333,8 @@ public class TagCellRenderer extends JPanel implements TableCellRenderer {
 
         for (int i = 0; i < tags.size(); i++) {
             String tag = tags.get(i);
-            Color bgColor = TagColorManager.getTagColor(tag);
-            Color fgColor = TagColorManager.getTagForegroundColor(bgColor);
+            Color bgColor = TagUtil.getTagColor(tag);
+            Color fgColor = TagUtil.getTagForegroundColor(bgColor);
 
             int textWidth = fm.stringWidth(tag);
             int tagWidth = textWidth + TAG_PADDING_H * 2;
@@ -381,8 +381,8 @@ public class TagCellRenderer extends JPanel implements TableCellRenderer {
         int x = TAG_GAP;
         int y = (height - fm.getHeight() - TAG_PADDING_V * 2) / 2;
 
-        Color bgColor = TagColorManager.getTagColor(tag);
-        Color fgColor = TagColorManager.getTagForegroundColor(bgColor);
+        Color bgColor = TagUtil.getTagColor(tag);
+        Color fgColor = TagUtil.getTagForegroundColor(bgColor);
 
         int textWidth = fm.stringWidth(tag);
         int tagWidth = textWidth + TAG_PADDING_H * 2;
