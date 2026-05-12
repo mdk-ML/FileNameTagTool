@@ -1384,7 +1384,7 @@ public final class SwingUtil {
             }
         });
 
-        // 右键菜单：清除颜色 / 重命名
+        // 右键菜单：清除颜色 / 重命名 / 删除标签
         JPopupMenu tagMenu = new JPopupMenu();
         JMenuItem clearColorItem = new JMenuItem("恢复自动颜色");
         tagMenu.add(clearColorItem);
@@ -1392,6 +1392,10 @@ public final class SwingUtil {
         JMenuItem renameTagItem = new JMenuItem("重命名");
         renameTagItem.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
         tagMenu.add(renameTagItem);
+        tagMenu.addSeparator();
+        JMenuItem deleteTagItem = new JMenuItem("删除标签");
+        deleteTagItem.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        tagMenu.add(deleteTagItem);
         String[] rightClickedTag = new String[1];
         clearColorItem.addActionListener(clearAction -> {
             String tag = rightClickedTag[0];
@@ -1406,6 +1410,43 @@ public final class SwingUtil {
             String oldTag = rightClickedTag[0];
             if (oldTag != null) {
                 showTagRenameDialog(oldTag, tagJList, tagListModel, path, refreshAction);
+            }
+        });
+        deleteTagItem.addActionListener(e -> {
+            String tag = rightClickedTag[0];
+            if (tag == null) {
+                return;
+            }
+            // 弹出确认对话框，防止误操作
+            int choice = JOptionPane.showConfirmDialog(
+                    tagJList,
+                    "确定要删除标签 \"" + tag + "\" 吗？\n此操作仅从配置中移除该标签，不会重命名任何文件。",
+                    "确认删除标签",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE
+            );
+            if (choice != JOptionPane.YES_OPTION) {
+                return;
+            }
+            try {
+                // 从全局配置中移除该标签
+                Config.tags.remove(tag);
+                // 从列表模型中移除
+                tagListModel.removeElement(tag);
+                // 清除该标签的自定义颜色
+                TagColorManager.clearColor(tag);
+                // 保存配置
+                ConfigUtil.save();
+                // 刷新界面
+                tagJList.repaint();
+                refreshAction.run();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(
+                        tagJList,
+                        "删除标签时发生错误: " + ex.getMessage(),
+                        "错误",
+                        JOptionPane.ERROR_MESSAGE
+                );
             }
         });
         tagJList.addMouseListener(new MouseAdapter() {
@@ -1446,7 +1487,7 @@ public final class SwingUtil {
         });
 
         // 提示标签
-        JLabel tipLabel = new JLabel("提示：拖拽调整标签顺序，双击普通标签设置颜色，右键恢复自动颜色/重命名，F2重命名标签");
+        JLabel tipLabel = new JLabel("提示：拖拽调整标签顺序，双击普通标签设置颜色，右键恢复自动颜色/重命名/删除标签，F2重命名标签");
         tipLabel.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 11));
         tipLabel.setForeground(TEXT_GRAY);
         tipLabel.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
