@@ -5,6 +5,7 @@ import cn.mdkml.filenametagtool.util.FileUtil;
 
 import javax.swing.table.AbstractTableModel;
 import java.io.File;
+import java.text.Collator;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -14,6 +15,7 @@ import java.util.stream.Collectors;
  *
  * 排序逻辑：
  * - 搜索时保持按表头列排序
+ * - 名称列排序：Win11 风格（逐字符比较，特殊字符 < 数字 < 字母 < 汉字）
  * - 标签列排序：按标签分数总和排序（配置文件最后的标签10分，倒数第二20分，以此类推）
  */
 public class FileTableModel extends AbstractTableModel {
@@ -155,8 +157,8 @@ public class FileTableModel extends AbstractTableModel {
     private int compareEntries(FileEntry a, FileEntry b, int column, boolean ascending) {
         int cmp = 0;
         switch (column) {
-            case 0: // 名称
-                cmp = a.file.getName().compareToIgnoreCase(b.file.getName());
+            case 0: // 名称（Win11 风格：逐字符比较，特殊字符 < 数字 < 字母 < 汉字）
+                cmp = compareNamesWin11Style(a.file.getName(), b.file.getName());
                 break;
             case 1: // 标签 - 按标签分数排序
                 cmp = compareTagsByScore(a.file.getName(), b.file.getName());
@@ -180,6 +182,117 @@ public class FileTableModel extends AbstractTableModel {
                 cmp = 0;
         }
         return ascending ? cmp : -cmp;
+    }
+
+    /**
+     * Win11 风格文件名比较
+     * <p>
+     * 排序规则：
+     * 1. 逐字符比较，从第一个字符开始
+     * 2. 字符类型优先级：特殊字符(0) < 数字(1) < 字母(2) < 汉字(3)
+     * 3. 数字按数值比较（自然排序），字母按字母顺序，汉字按拼音比较
+     * 4. 长度不同时，较短的排在前面
+     * </p>
+     *
+     * @param nameA 文件名A
+     * @param nameB 文件名B
+     * @return 比较结果
+     */
+    private int compareNamesWin11Style(String nameA, String nameB) {
+        // 使用中文拼音排序器
+        Collator pinyinCollator = Collator.getInstance(Locale.CHINA);
+        pinyinCollator.setStrength(Collator.PRIMARY); // 忽略大小写
+
+        int i = 0;
+        int j = 0;
+        while (i < nameA.length() && j < nameB.length()) {
+            char c1 = nameA.charAt(i);
+            char c2 = nameB.charAt(j);
+            int type1 = getCharType(c1);
+            int type2 = getCharType(c2);
+
+            // 不同类型：按优先级比较（特殊字符 < 数字 < 字母 < 汉字）
+            if (type1 != type2) {
+                return Integer.compare(type1, type2);
+            }
+
+            // 同类型比较
+            switch (type1) {
+                case 1: // 数字 vs 数字：按数值比较
+                    String num1 = extractNumber(nameA, i);
+                    String num2 = extractNumber(nameB, j);
+                    int cmpNum = Integer.compare(Integer.parseInt(num1), Integer.parseInt(num2));
+                    if (cmpNum != 0) {
+                        return cmpNum;
+                    }
+                    i += num1.length();
+                    j += num2.length();
+                    break;
+                case 2: // 字母 vs 字母：按字母顺序比较
+                    int cmpLetter = Character.toLowerCase(c1) - Character.toLowerCase(c2);
+                    if (cmpLetter != 0) {
+                        return cmpLetter;
+                    }
+                    i++;
+                    j++;
+                    break;
+                case 3: // 汉字 vs 汉字：按拼音比较
+                    int cmpPinyin = pinyinCollator.compare(String.valueOf(c1), String.valueOf(c2));
+                    if (cmpPinyin != 0) {
+                        return cmpPinyin;
+                    }
+                    i++;
+                    j++;
+                    break;
+                default: // 特殊字符 vs 特殊字符：按字符值比较
+                    int cmpSpecial = c1 - c2;
+                    if (cmpSpecial != 0) {
+                        return cmpSpecial;
+                    }
+                    i++;
+                    j++;
+                    break;
+            }
+        }
+
+        // 长度不同：较短的排在前面
+        return Integer.compare(nameA.length(), nameB.length());
+    }
+
+    /**
+     * 判断字符类型
+     *
+     * @param c 字符
+     * @return 0=特殊字符, 1=数字, 2=字母, 3=汉字
+     */
+    private int getCharType(char c) {
+        if (Character.isDigit(c)) {
+            return 1;
+        }
+        if (Character.isLetter(c)) {
+            // 判断是否为汉字（CJK统一汉字）
+            if (Character.UnicodeBlock.of(c) == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS) {
+                return 3;
+            }
+            return 2;
+        }
+        return 0;
+    }
+
+    /**
+     * 从指定位置开始提取连续数字
+     *
+     * @param str   字符串
+     * @param start 起始位置
+     * @return 数字字符串
+     */
+    private String extractNumber(String str, int start) {
+        StringBuilder sb = new StringBuilder();
+        while (start < str.length() && Character.isDigit(str.charAt(start))) {
+            sb.append(str.charAt(start));
+            start++;
+        }
+        return sb.toString();
     }
 
     /**
