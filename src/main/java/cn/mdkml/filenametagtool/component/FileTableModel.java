@@ -10,12 +10,11 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * 文件列表表格模型，支持多关键词搜索过滤、相关度排序和按列排序。
- * 
+ * 文件列表表格模型，支持多关键词搜索过滤和按列排序。
+ *
  * 排序逻辑：
- * - 搜索时默认按相关度排序
- * - 用户点击表头后，切换为按列排序（搜索过滤仍保留）
- * - 清除搜索后，按列排序
+ * - 搜索时保持按表头列排序
+ * - 标签列排序：按标签分数总和排序（配置文件最后的标签10分，倒数第二20分，以此类推）
  */
 public class FileTableModel extends AbstractTableModel {
 
@@ -27,8 +26,6 @@ public class FileTableModel extends AbstractTableModel {
     private String[] searchKeywords = new String[0];
     private int sortColumn = 0;
     private boolean sortAscending = true;
-    /** 是否使用搜索相关度排序（搜索时默认true，用户点击表头后变为false） */
-    private boolean useRelevanceSort = false;
 
     public FileTableModel() {
     }
@@ -49,8 +46,6 @@ public class FileTableModel extends AbstractTableModel {
      */
     public void setSearchKeywords(String[] keywords) {
         this.searchKeywords = keywords != null ? keywords : new String[0];
-        // 搜索时自动启用相关度排序
-        this.useRelevanceSort = this.searchKeywords.length > 0;
         applyFilterAndSort();
     }
 
@@ -60,8 +55,6 @@ public class FileTableModel extends AbstractTableModel {
     public void setSort(int column, boolean ascending) {
         this.sortColumn = column;
         this.sortAscending = ascending;
-        // 用户主动排序时，关闭相关度排序
-        this.useRelevanceSort = false;
         applyFilterAndSort();
     }
 
@@ -127,23 +120,8 @@ public class FileTableModel extends AbstractTableModel {
                     .collect(Collectors.toList());
         }
 
-        // 排序逻辑：搜索时默认按相关度，用户点击表头后按列排序
-        boolean isSearching = searchKeywords.length > 0;
-        if (isSearching && useRelevanceSort) {
-            // 搜索相关度排序：先按相关度降序，再按列排序作为次要排序
-            filtered.sort((a, b) -> {
-                int scoreA = calculateRelevance(a);
-                int scoreB = calculateRelevance(b);
-                int cmp = Integer.compare(scoreB, scoreA);
-                if (cmp != 0) {
-                    return cmp;
-                }
-                return compareEntries(a, b, sortColumn, sortAscending);
-            });
-        } else {
-            // 按列排序
-            filtered.sort((a, b) -> compareEntries(a, b, sortColumn, sortAscending));
-        }
+        // 始终按列排序
+        filtered.sort((a, b) -> compareEntries(a, b, sortColumn, sortAscending));
 
         this.displayedEntries = filtered;
         fireTableDataChanged();
@@ -166,39 +144,6 @@ public class FileTableModel extends AbstractTableModel {
     }
 
     /**
-     * 计算文件条目与搜索关键词的相关度分数
-     *
-     * @param entry 文件条目
-     * @return 相关度分数，越高越相关
-     */
-    private int calculateRelevance(FileEntry entry) {
-        String lowerName = entry.file.getName().toLowerCase();
-        int score = 0;
-        int matchedCount = 0;
-        for (String keyword : searchKeywords) {
-            String lowerKeyword = keyword.toLowerCase();
-            int idx = lowerName.indexOf(lowerKeyword);
-            if (idx >= 0) {
-                matchedCount++;
-                score += 100;
-                if (idx == 0) {
-                    score += 50;
-                }
-                int count = 0;
-                int from = 0;
-                while ((from = lowerName.indexOf(lowerKeyword, from)) >= 0) {
-                    count++;
-                    from += lowerKeyword.length();
-                }
-                score += (count - 1) * 10;
-            }
-        }
-        score += matchedCount * 200;
-        score += Math.max(0, 500 - entry.file.getName().length());
-        return score;
-    }
-
-    /**
      * 比较两个文件条目，支持按指定列和排序方向进行比较
      *
      * @param a         第一个文件条目
@@ -213,8 +158,8 @@ public class FileTableModel extends AbstractTableModel {
             case 0: // 名称
                 cmp = a.file.getName().compareToIgnoreCase(b.file.getName());
                 break;
-            case 1: // 标签 - 按配置中的标签顺序排序
-                cmp = compareTagsByConfigOrder(a.file.getName(), b.file.getName());
+            case 1: // 标签 - 按标签分数排序
+                cmp = compareTagsByScore(a.file.getName(), b.file.getName());
                 if (cmp == 0) {
                     cmp = a.file.getName().compareToIgnoreCase(b.file.getName());
                 }
@@ -238,37 +183,76 @@ public class FileTableModel extends AbstractTableModel {
     }
 
     /**
-     * 按配置中的标签顺序比较两个文件的标签
-     * 取每个文件的第一个标签，按 Config.tags 中的索引位置排序
-     * 没有标签的文件排在最后
+     * 按标签分数比较两个文件
+     * 配置文件最后的标签是10分，倒数第二是20分，以此增加
+     * 没有标签的是0分
+     *
+     * @param fileNameA 文件名A
+     * @param fileNameB 文件名B
+     * @return 比较结果
      */
-    private int compareTagsByConfigOrder(String fileNameA, String fileNameB) {
-        List<String> tagsA = FileUtil.parseAllTags(fileNameA);
-        List<String> tagsB = FileUtil.parseAllTags(fileNameB);
-
-        int orderA = getFirstTagOrder(tagsA);
-        int orderB = getFirstTagOrder(tagsB);
-
-        return Integer.compare(orderA, orderB);
+    private int compareTagsByScore(String fileNameA, String fileNameB) {
+        int scoreA = calculateTagScore(fileNameA);
+        int scoreB = calculateTagScore(fileNameB);
+        return Integer.compare(scoreA, scoreB);
     }
 
     /**
-     * 获取标签列表中第一个标签在配置中的顺序索引
-     * 没有标签或标签不在配置中时返回 Integer.MAX_VALUE
+     * 计算文件的标签分数总和
+     * 配置文件最后的标签是10分，倒数第二是20分，依次增加
+     * 没有标签或标签不在配置中的是0分
+     * 特殊标签处理：
+     * - {文件名} 不计算分数
+     * - {当前日期} 匹配文件中的日期标签（如 20260513）
+     * - {版本号} 匹配文件中的版本号标签（如 V1、V2）
+     *
+     * @param fileName 文件名
+     * @return 标签分数总和
      */
-    private int getFirstTagOrder(List<String> tags) {
+    private int calculateTagScore(String fileName) {
+        List<String> tags = FileUtil.parseAllTags(fileName);
         if (tags.isEmpty()) {
-            return Integer.MAX_VALUE;
+            return 0;
         }
-        // 遍历文件的标签，找到在配置中顺序最靠前的
-        int minOrder = Integer.MAX_VALUE;
+
+        int totalScore = 0;
+        int configSize = Config.tags.size();
+
         for (String tag : tags) {
+            // 跳过 {文件名} 特殊标签
+            if (FileUtil.TAG_ORDER_FILENAME.equals(tag)) {
+                continue;
+            }
+
+            // 检查是否是日期标签（如 20260513）
+            if (FileUtil.DATE_TAG_PATTERN.matcher(tag).matches()) {
+                int dateIndex = Config.tags.indexOf(FileUtil.TAG_ORDER_DATE);
+                if (dateIndex >= 0) {
+                    int score = (configSize - dateIndex) * 10;
+                    totalScore += score;
+                }
+                continue;
+            }
+
+            // 检查是否是版本号标签（如 V1、V2）
+            if (FileUtil.VERSION_TAG_PATTERN.matcher(tag).matches()) {
+                int versionIndex = Config.tags.indexOf(FileUtil.TAG_ORDER_VERSION);
+                if (versionIndex >= 0) {
+                    int score = (configSize - versionIndex) * 10;
+                    totalScore += score;
+                }
+                continue;
+            }
+
+            // 普通标签：在配置中查找
             int index = Config.tags.indexOf(tag);
-            if (index >= 0 && index < minOrder) {
-                minOrder = index;
+            if (index >= 0) {
+                int score = (configSize - index) * 10;
+                totalScore += score;
             }
         }
-        return minOrder;
+
+        return totalScore;
     }
 
     // ========== AbstractTableModel ==========
@@ -357,7 +341,7 @@ public class FileTableModel extends AbstractTableModel {
         if (bytes < 1024 * 1024 * 1024) {
             return String.format("%.1f MB", bytes / (1024.0 * 1024));
         }
-        return String.format("%.1f GB", bytes / (1024.0 * 1024 * 1024));
+        return String.format("%.2f GB", bytes / (1024.0 * 1024 * 1024));
     }
 
     /**

@@ -941,14 +941,6 @@ public final class SwingUtil {
             tableModel.setSearchKeywords(keywords);
             highlightRenderer.setKeywords(keywords);
 
-            // 搜索时重置表头排序状态
-            if (isFiltering) {
-                headerRenderer.setSortState(-1, true);
-            } else {
-                headerRenderer.setSortState(Config.fileSortColumn, Config.fileSortAscending);
-            }
-            fileTable.getTableHeader().repaint();
-
             updateStatusBar.run();
             filesScroll.repaint();
         });
