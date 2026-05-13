@@ -1,6 +1,7 @@
 package cn.mdkml.filenametagtool.model;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class Parsed {
@@ -20,7 +21,7 @@ public class Parsed {
      */
     public static Parsed parseArgs(String[] args) {
         if (args == null || args.length == 0) {
-            return new Parsed(null, List.of());
+            return new Parsed(null, Collections.emptyList());
         }
         Action action = Action.fromArg(args[0]);
         List<String> paths = new ArrayList<>();

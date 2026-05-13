@@ -1,217 +1,53 @@
+# FileNameTagTool vs TagSpaces vs Files — 综合对比
+
+---
 # FileNameTagTool
 
 一款基于 Java Swing 的文件名标签管理工具，支持批量添加、移除、重排文件名中的标签，帮助用户高效管理文件分类。
 
-## 功能特性
+FileNameTagTool 的核心设计理念是通过修改文件名本身来嵌入标签信息。相比自建数据库管理标签的方式，标签直接写入文件名，无需额外数据库文件，文件复制、移动、备份时标签自动跟随，与原生资源管理器完全兼容。相比 sidecar 文件方案（如 TagSpaces 的 `.ts` 文件夹），不会在目录中生成任何额外的元数据文件或隐藏文件夹，保持目录整洁，同样便于迁移且兼容原生资源管理器。
 
-- **批量添加标签**：为选中的文件批量添加自定义标签
-- **批量移除标签**：从选中的文件中批量移除指定标签
-- **标签顺序重排**：按照配置的全局顺序重新排列文件名中的标签
-- **版本管理**：自动为文件创建新版本（如 V1 → V2）
-- **无标签复制**：复制文件并移除所有标签
-- **智能标签**：支持日期标签、历史标签等智能标签功能
-- **Everything 集成**：集成 Everything 搜索引擎，快速查找带标签的文件
-- **可视化管理**：提供图形化界面，支持拖拽排序标签顺序
+## 功能特性
+- **极致轻量、启动速度快、操作不卡顿**：零外部依赖，单个 JAR 包即可运行，无 Electron 或 Chromium 运行时开销，从启动到操作全程流畅
+- **标签排序**：TagSpaces 仅将标签嵌入文件名，但不控制标签顺序。FileNameTagTool 支持按全局配置重新排列文件名中的标签顺序，保证所有文件的标签排列一致
+- **批量标签重命名**：支持将旧标签批量替换为新标签，一次性更新所有相关文件
+- **包裹符号切换**：支持在 `【】` 和 `[]` 两种包裹符号之间自由切换，适应不同命名习惯
+- **多标签搜索**：支持按多个标签组合搜索文件，标签之间用空格分隔，快速定位目标文件
+- **Windows 原生右键菜单集成**：在 Windows 资源管理器中选中文件后，可直接通过右键菜单快速执行以下操作：
+  - **生成新版本**：方便记录文档迭代，自动创建 V1、V2 等版本标签
+  - **移除所有标签**：一键恢复原文件名
+  - **创建无标签副本**：对外传递文件时清除标签信息，使用无标签副本进行分享
+- **跨平台支持**：基于 Java Swing，可在 Windows、macOS、Linux 上运行
+
+---
+
 
 ## 系统要求
 
 - **JDK 17+**
-- **Maven 3.6+**（用于构建）
-- **Everything 客户端**（可选，用于搜索功能）
-- **Windows 操作系统**（依赖 Everything DLL）
+- **Windows 操作系统**
 
-## 构建
 
-```bash
-cd FileNameTagTool
-mvn -q -DskipTests package
-```
+## 快速开始
 
-生成文件：`target/filename-tagtool-1.0.0.jar`
+1. 下载或克隆本仓库
+2. 右键点击 `setup-and-run.bat`，选择「以管理员身份运行」
+3. 脚本会自动配置右键菜单并启动工具
 
-## 运行
 
-### 命令行运行
+## 为什么不用 TagSpaces 和 Files
 
-```bash
-javaw -jar target/filename-tagtool-1.0.0.jar <action> <file1> [file2] ...
-```
+### TagSpaces：`.ts` 文件夹污染目录 + Electron 架构卡顿
 
-### 支持的操作
+TagSpaces 的文件名标签模式本身值得借鉴，但存在两个致命问题：
 
-| 操作 | 参数 | 说明 |
-|------|------|------|
-| 添加标签 | `add` | 打开标签管理窗口，自动切换到添加标签页 |
-| 移除标签 | `remove` | 打开标签管理窗口，自动切换到移除标签页 |
-| 移除所有标签 | `removeAll` | 移除文件名中的所有标签 |
-| 创建新版本 | `newVersion` | 创建文件的新版本（V1 → V2） |
-| 无标签复制 | `copyWithoutTags` | 复制文件并移除所有标签 |
-| 标签管理 | `manage` | 打开标签管理窗口 |
+1. **生成 `.ts` 文件夹污染目录**：启用 sidecar 文件模式后，会在每个目录下生成隐藏的 `.ts` 文件夹，里面存放大量 `.json` 元数据文件，严重扰乱原生文件目录结构，产生大量垃圾信息。sidecar 机制本质上是用"污染目录"换取"保留原文件名"，代价过高。
+2. **Electron 架构导致卡顿**：基于 Chromium 的 Electron 框架天然带来较大的内存占用和较慢的启动速度，日常操作流畅性不佳，与 Files 一样存在性能瓶颈。
 
-### 示例
+### Files：颜值天花板，但卡顿毁一切
 
-```bash
-# 添加标签
-javaw -jar target/filename-tagtool-1.0.0.jar add "C:\path\to\file.txt"
+Files 是三款工具中视觉设计最出色的——Fluent Design 风格与 Windows 11 深度融合，界面美观、现代化，操作逻辑也贴近直觉。它的标签功能设计合理，标签页、双窗格、Git 集成等功能一应俱全。
 
-# 移除标签
-javaw -jar target/filename-tagtool-1.0.0.jar remove "C:\path\to\file.txt"
+**但严重且普遍的性能卡顿问题彻底破坏了使用体验**：滚动列表卡、搜索文件卡、打开文件夹卡、切换标签页也卡——这些不是偶发问题，而是每一个基础操作都无法流畅完成。作为一款需要每天高频使用的文件管理工具，流畅性是最基本的要求，这一点不达标，再好的设计也无法正常使用。
 
-# 批量操作
-javaw -jar target/filename-tagtool-1.0.0.jar add "C:\path\to\file1.txt" "C:\path\to\file2.txt"
-```
-
-## 右键菜单配置
-
-### 注册表配置示例
-
-```reg
-Windows Registry Editor Version 5.00
-
-; 添加标签
-[HKEY_CURRENT_USER\Software\Classes\*\shell\FileNameTagTool\shell\AddTag]
-@="添加标签"
-
-[HKEY_CURRENT_USER\Software\Classes\*\shell\FileNameTagTool\shell\AddTag\command]
-@="\"C:\\Program Files\\Java\\jdk-17\\bin\\javaw.exe\" -jar \"C:\\path\\to\\filename-tagtool-1.0.0.jar\" add \"%1\""
-
-; 移除标签
-[HKEY_CURRENT_USER\Software\Classes\*\shell\FileNameTagTool\shell\RemoveTag]
-@="移除标签"
-
-[HKEY_CURRENT_USER\Software\Classes\*\shell\FileNameTagTool\shell\RemoveTag\command]
-@="\"C:\\Program Files\\Java\\jdk-17\\bin\\javaw.exe\" -jar \"C:\\path\\to\\filename-tagtool-1.0.0.jar\" remove \"%1\""
-
-; 移除所有标签
-[HKEY_CURRENT_USER\Software\Classes\*\shell\FileNameTagTool\shell\RemoveAllTags]
-@="移除所有标签"
-
-[HKEY_CURRENT_USER\Software\Classes\*\shell\FileNameTagTool\shell\RemoveAllTags\command]
-@="\"C:\\Program Files\\Java\\jdk-17\\bin\\javaw.exe\" -jar \"C:\\path\\to\\filename-tagtool-1.0.0.jar\" removeAll \"%1\""
-
-; 创建新版本
-[HKEY_CURRENT_USER\Software\Classes\*\shell\FileNameTagTool\shell\NewVersion]
-@="创建新版本"
-
-[HKEY_CURRENT_USER\Software\Classes\*\shell\FileNameTagTool\shell\NewVersion\command]
-@="\"C:\\Program Files\\Java\\jdk-17\\bin\\javaw.exe\" -jar \"C:\\path\\to\\filename-tagtool-1.0.0.jar\" newVersion \"%1\""
-
-; 标签管理
-[HKEY_CURRENT_USER\Software\Classes\*\shell\FileNameTagTool\shell\Manage]
-@="标签管理"
-
-[HKEY_CURRENT_USER\Software\Classes\*\shell\FileNameTagTool\shell\Manage\command]
-@="\"C:\\Program Files\\Java\\jdk-17\\bin\\javaw.exe\" -jar \"C:\\path\\to\\filename-tagtool-1.0.0.jar\" manage \"%1\""
-```
-
-## 配置文件
-
-配置文件位置：`~/.filenametagtool/filename-tagtool.conf`
-
-### 配置项说明
-
-```properties
-# 窗口位置和大小
-window.x=0
-window.y=0
-window.w=0
-window.h=0
-
-# 分割线位置
-ui.divider=0
-
-# 标签管理窗口位置和大小
-groupTagsWindowX=0
-groupTagsWindowY=0
-groupTagsWindowWidth=0
-groupTagsWindowHeight=0
-
-# Everything工具路径
-everythingPath=C:/Program Files/Everything/Everything.exe
-
-# 图标文件目录路径
-iconPath=C:/Users/MU/Documents/FileNameTagTool/ico/
-
-# 添加标签页分隔线位置
-addTagTab.horizontalDivider=0
-addTagTab.verticalDivider=0
-addTagTab.smartHistoryDivider=0
-
-# 标签列表（多个标签用逗号分隔）
-tag={文件名},{版本号},{当前日期},工作,重要
-```
-
-## 标签语法
-
-- 标签使用中文方括号包裹：`【标签名】`
-- 版本号标签格式：`【V1】`、`【V2】` 等
-- 日期标签格式：`【20260506】`（8位数字）
-- 标签可以出现在文件名的任意位置
-
-### 示例
-
-```
-【工作】文档.docx
-【V2】【重要】报告.docx
-项目计划【20260506】.docx
-【紧急】【V3】需求文档.docx
-```
-
-## 项目结构
-
-```
-FileNameTagTool/
-├── src/main/java/cn/mdkml/filenametagtool/
-│   ├── FileNameTagTool.java          # 主类，程序入口
-│   ├── FileNameTagToolTest.java      # 测试类
-│   ├── component/
-│   │   ├── BadgeToggleButton.java    # 带徽标的按钮组件
-│   │   └── WrapLayout.java           # 自动换行布局管理器
-│   ├── model/
-│   │   ├── Action.java               # 操作类型枚举
-│   │   ├── Config.java               # 配置模型
-│   │   └── Parsed.java               # 命令行参数解析结果
-│   └── util/
-│       ├── ConfigUtil.java           # 配置工具类
-│       ├── EverythingUtil.java       # Everything 搜索工具
-│       ├── FileUtil.java             # 文件操作工具类
-│       ├── SwingUtil.java            # Swing UI 工具类
-│       └── TagUtil.java              # 标签工具类
-├── pom.xml                           # Maven 配置文件
-├── ico/                              # 图标资源
-├── addRightMenu.reg                  # 右键菜单注册脚本
-└── README.md                         # 项目说明文档
-```
-
-## 常见问题
-
-### Q: Everything 搜索功能不工作？
-
-A: 请确保：
-1. Everything 客户端已启动
-2. Everything DLL 文件在项目根目录
-3. 配置文件中的 Everything 路径正确
-
-### Q: 如何自定义标签顺序？
-
-A: 打开标签管理窗口，在"设置"标签页中可以拖拽调整标签顺序，点击"保存"按钮保存配置。
-
-### Q: 如何批量操作多个文件？
-
-A: 在命令行中传入多个文件路径，或在右键菜单中选择多个文件后执行操作。
-
-### Q: 标签支持哪些字符？
-
-A: 标签支持任意字符，但建议使用中文、英文、数字等常见字符，避免使用特殊符号。
-
-## 打包成 EXE
-
-使用 `jpackage` 生成独立的可执行文件：
-
-```bash
-jpackage --input target/ --main-jar filename-tagtool-1.0.0.jar --name FileNameTagTool --type exe --main-class cn.mdkml.filenametagtool.FileNameTagTool
-```
-
-## 许可证
-
-本项目仅供学习和个人使用。
+**如果 Files 能解决卡顿问题，它就是理想的文件标签管理工具。** 希望 Files 社区能在后续版本中重点优化性能，届时它将成为一个极具竞争力的选择。

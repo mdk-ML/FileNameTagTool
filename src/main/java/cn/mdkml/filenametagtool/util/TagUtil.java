@@ -4,6 +4,7 @@ import cn.mdkml.filenametagtool.model.Config;
 
 import java.awt.Color;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -86,7 +87,7 @@ public final class TagUtil {
      */
     public static List<String> normalizeTags(List<String> tags) {
         if (tags == null) {
-            return List.of();
+            return Collections.emptyList();
         }
         LinkedHashSet<String> out = new LinkedHashSet<>();
         for (String t : tags) {

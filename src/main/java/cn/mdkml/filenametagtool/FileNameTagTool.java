@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * 文件名标签工具主类。
@@ -38,8 +39,6 @@ public final class FileNameTagTool {
 //        }
 //        SwingUtil.showError(sb.toString());
 
-        // 修复Windows右键菜单传递中文路径时的编码问题
-//        String[] fixedArgs = fixArgsEncoding(args);
 
         final Parsed parsed = Parsed.parseArgs(args);
         if (parsed.action == null) {
@@ -56,7 +55,7 @@ public final class FileNameTagTool {
                 .filter(Objects::nonNull)
                 .filter(p -> Files.exists(p, LinkOption.NOFOLLOW_LINKS))
                 .distinct()
-                .toList();
+                .collect(Collectors.toList());
 
         if (existing.isEmpty()) {
             SwingUtil.showMessage("没有获取到有效的文件/文件夹路径。");

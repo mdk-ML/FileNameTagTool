@@ -11,6 +11,7 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * FileNameTagTool 的本地测试类。
@@ -42,7 +43,7 @@ public class FileNameTagToolTest {
                 .filter(Objects::nonNull)
                 .filter(p -> Files.exists(p, LinkOption.NOFOLLOW_LINKS))
                 .distinct()
-                .toList();
+                .collect(Collectors.toList());
 
         if (!existing.isEmpty() && parsed.action == Action.MANAGE) {
             SwingUtil.createTagManagerWindow(existing.get(0).toString());
@@ -69,7 +70,7 @@ public class FileNameTagToolTest {
                 .filter(Objects::nonNull)
                 .filter(p -> Files.exists(p, LinkOption.NOFOLLOW_LINKS))
                 .distinct()
-                .toList();
+                .collect(Collectors.toList());
 
         if (!existing.isEmpty() && parsed.action == Action.NEW_VERSION) {
             try {

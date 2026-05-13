@@ -23,6 +23,7 @@ import java.awt.event.*;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Collections;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
@@ -325,8 +326,14 @@ public final class SwingUtil {
         tabbedPane.addChangeListener(e -> {
             int selectedIndex = finalTabbedPane.getSelectedIndex();
             switch (selectedIndex) {
-                case TabIndex.UNIFIED_TAG -> refreshUnifiedTag[0].run();
-                case TabIndex.SETTINGS -> refreshSettings[0].run();
+                case TabIndex.UNIFIED_TAG:
+                    refreshUnifiedTag[0].run();
+                    break;
+                case TabIndex.SETTINGS:
+                    refreshSettings[0].run();
+                    break;
+                default:
+                    break;
             }
         });
 
@@ -427,7 +434,7 @@ public final class SwingUtil {
 
         addItem.addActionListener(e -> {
             if (contextMenuTag[0] != null && !selectedFiles.isEmpty()) {
-                applyTagToSelectedFiles(selectedFiles, List.of(contextMenuTag[0]), refreshAction);
+                applyTagToSelectedFiles(selectedFiles, Collections.singletonList(contextMenuTag[0]), refreshAction);
             } else if (selectedFiles.isEmpty()) {
                 showMessage("请先在右侧选择文件");
             }
@@ -435,7 +442,7 @@ public final class SwingUtil {
 
         removeItem.addActionListener(e -> {
             if (contextMenuTag[0] != null && !selectedFiles.isEmpty()) {
-                performRemove(selectedFiles, Set.of(contextMenuTag[0]), refreshAction);
+                performRemove(selectedFiles, Collections.singleton(contextMenuTag[0]), refreshAction);
             } else if (selectedFiles.isEmpty()) {
                 showMessage("请先在右侧选择文件");
             }
@@ -602,7 +609,7 @@ public final class SwingUtil {
                 int modelRow = fileTable.convertRowIndexToModel(hoveredRow);
                 File file = tableModel.getFileAt(modelRow);
                 if (file != null) {
-                    performRemove(List.of(file), Set.of(tagName), refreshAction);
+                    performRemove(Collections.singletonList(file), Collections.singleton(tagName), refreshAction);
                 }
             }
         });

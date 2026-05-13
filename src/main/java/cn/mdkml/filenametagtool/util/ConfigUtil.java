@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -393,7 +394,7 @@ public final class ConfigUtil {
      */
     private static String getTagColorsString() {
         StringBuilder sb = new StringBuilder();
-        for (var entry : Config.tagColors.entrySet()) {
+        for (Map.Entry<String, Color> entry : Config.tagColors.entrySet()) {
             if (sb.length() > 0) {
                 sb.append(",");
             }
