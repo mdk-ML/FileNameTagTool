@@ -362,16 +362,35 @@ public final class SwingUtil {
         // 搜索框引用（使用数组包装以便在 lambda 中引用）
         final JTextField[] searchFieldRef = new JTextField[1];
 
-        // ==================== 统计标签数量 ====================
-        File currentDirForCount = new File(path);
-        File[] filesForCount = currentDirForCount.listFiles();
+        // ==================== 统计标签数量（递归扫描所有子目录） ====================
         final Map<String, Integer> tagCounts = new HashMap<>();
-        if (filesForCount != null) {
-            for (File file : filesForCount) {
-                if (file.isFile()) {
-                    List<String> fileTags = FileUtil.parseAllTags(file.getName());
+        try {
+            java.nio.file.Files.walkFileTree(java.nio.file.Path.of(path), new java.nio.file.SimpleFileVisitor<>() {
+                @Override
+                public java.nio.file.FileVisitResult visitFile(java.nio.file.Path file, java.nio.file.attribute.BasicFileAttributes attrs) {
+                    List<String> fileTags = FileUtil.parseAllTags(file.getFileName().toString());
                     for (String tag : fileTags) {
                         tagCounts.merge(tag, 1, Integer::sum);
+                    }
+                    return java.nio.file.FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public java.nio.file.FileVisitResult visitFileFailed(java.nio.file.Path file, java.io.IOException exc) {
+                    return java.nio.file.FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (IOException e) {
+            // 降级为非递归
+            File currentDirForCount = new File(path);
+            File[] filesForCount = currentDirForCount.listFiles();
+            if (filesForCount != null) {
+                for (File file : filesForCount) {
+                    if (file.isFile()) {
+                        List<String> fileTags = FileUtil.parseAllTags(file.getName());
+                        for (String tag : fileTags) {
+                            tagCounts.merge(tag, 1, Integer::sum);
+                        }
                     }
                 }
             }
@@ -535,21 +554,9 @@ public final class SwingUtil {
         leftSplit.setBorder(null);
 
         // ==================== 右侧上部：当前目录文件模块（含搜索和排序） ====================
-        File currentDir = new File(path);
-        File[] files = currentDir.listFiles();
-
-        final List<File> allFiles = new ArrayList<>();
-        if (files != null) {
-            for (File file : files) {
-                if (file.isFile()) {
-                    allFiles.add(file);
-                }
-            }
-        }
-
-        // 文件表格模型
+        // 文件表格模型（递归加载所有子目录的文件和文件夹）
         FileTableModel tableModel = new FileTableModel();
-        tableModel.setFiles(allFiles);
+        tableModel.setFilesRecursive(path);
         tableModel.setSort(Config.fileSortColumn, Config.fileSortAscending);
 
         JTable fileTable = new JTable(tableModel);
@@ -590,8 +597,12 @@ public final class SwingUtil {
         });
 
         // 设置列渲染器
+        FileNameCellRenderer fileNameRenderer = new FileNameCellRenderer();
         for (int i = 0; i < fileTable.getColumnCount(); i++) {
-            if (i == 1) {
+            if (i == 0) {
+                // 名称列使用图标+文件名渲染器
+                fileTable.getColumnModel().getColumn(i).setCellRenderer(fileNameRenderer);
+            } else if (i == 1) {
                 // 标签列使用专用渲染器
                 fileTable.getColumnModel().getColumn(i).setCellRenderer(tagCellRenderer);
             } else {
@@ -1498,12 +1509,12 @@ public final class SwingUtil {
         rescanButton.setFocusPainted(false);
         rescanButton.addActionListener(e -> {
             LinkedHashSet<String> scannedTags = new LinkedHashSet<>();
-            File currentDir = new File(path);
-            File[] files = currentDir.listFiles();
-            if (files != null) {
-                for (File file : files) {
-                    if (file.isFile()) {
-                        for (String tag : FileUtil.parseAllTags(file.getName())) {
+            // 递归扫描所有子目录的标签
+            try {
+                java.nio.file.Files.walkFileTree(java.nio.file.Path.of(path), new java.nio.file.SimpleFileVisitor<>() {
+                    @Override
+                    public java.nio.file.FileVisitResult visitFile(java.nio.file.Path file, java.nio.file.attribute.BasicFileAttributes attrs) {
+                        for (String tag : FileUtil.parseAllTags(file.getFileName().toString())) {
                             if (FileUtil.VERSION_TAG_PATTERN.matcher(tag).matches()) {
                                 continue;
                             }
@@ -1511,6 +1522,31 @@ public final class SwingUtil {
                                 continue;
                             }
                             scannedTags.add(tag);
+                        }
+                        return java.nio.file.FileVisitResult.CONTINUE;
+                    }
+
+                    @Override
+                    public java.nio.file.FileVisitResult visitFileFailed(java.nio.file.Path file, java.io.IOException exc) {
+                        return java.nio.file.FileVisitResult.CONTINUE;
+                    }
+                });
+            } catch (IOException ex) {
+                // 降级为非递归
+                File currentDir = new File(path);
+                File[] files = currentDir.listFiles();
+                if (files != null) {
+                    for (File file : files) {
+                        if (file.isFile()) {
+                            for (String tag : FileUtil.parseAllTags(file.getName())) {
+                                if (FileUtil.VERSION_TAG_PATTERN.matcher(tag).matches()) {
+                                    continue;
+                                }
+                                if (FileUtil.DATE_TAG_PATTERN.matcher(tag).matches()) {
+                                    continue;
+                                }
+                                scannedTags.add(tag);
+                            }
                         }
                     }
                 }

@@ -5,6 +5,12 @@ import cn.mdkml.filenametagtool.util.FileUtil;
 
 import javax.swing.table.AbstractTableModel;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.text.Collator;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -42,6 +48,49 @@ public class FileTableModel extends AbstractTableModel {
         allEntries.clear();
         for (File f : files) {
             allEntries.add(new FileEntry(f));
+        }
+        applyFilterAndSort();
+    }
+
+    /**
+     * 递归扫描目录，加载所有文件和子文件夹
+     *
+     * @param rootPath 根目录路径
+     */
+    public void setFilesRecursive(String rootPath) {
+        allEntries.clear();
+        try {
+            Files.walkFileTree(Path.of(rootPath), new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                    // 跳过根目录自身（只添加其子项）
+                    if (!dir.toString().equals(rootPath)) {
+                        allEntries.add(new FileEntry(dir.toFile()));
+                    }
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                    allEntries.add(new FileEntry(file.toFile()));
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult visitFileFailed(Path file, IOException exc) {
+                    // 跳过无法访问的文件
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (IOException e) {
+            // 降级为非递归加载
+            File rootDir = new File(rootPath);
+            File[] files = rootDir.listFiles();
+            if (files != null) {
+                for (File f : files) {
+                    allEntries.add(new FileEntry(f));
+                }
+            }
         }
         applyFilterAndSort();
     }
@@ -158,6 +207,11 @@ public class FileTableModel extends AbstractTableModel {
      * @return 比较结果
      */
     private int compareEntries(FileEntry a, FileEntry b, int column, boolean ascending) {
+        // 文件始终排在文件夹前面（不受排序方向影响）
+        if (a.isDirectory != b.isDirectory) {
+            return a.isDirectory ? 1 : -1;
+        }
+
         int cmp = 0;
         switch (column) {
             case 0: // 名称（Win11 风格：逐字符比较，特殊字符 < 数字 < 字母 < 汉字）
@@ -224,7 +278,7 @@ public class FileTableModel extends AbstractTableModel {
                 case 1: // 数字 vs 数字：按数值比较
                     String num1 = extractNumber(nameA, i);
                     String num2 = extractNumber(nameB, j);
-                    int cmpNum = Integer.compare(Integer.parseInt(num1), Integer.parseInt(num2));
+                    int cmpNum = Long.compare(Long.parseLong(num1), Long.parseLong(num2));
                     if (cmpNum != 0) {
                         return cmpNum;
                     }
@@ -391,7 +445,7 @@ public class FileTableModel extends AbstractTableModel {
     @Override
     public Class<?> getColumnClass(int columnIndex) {
         switch (columnIndex) {
-            case 0: return String.class;  // 名称
+            case 0: return FileEntry.class;  // 名称（含图标）
             case 1: return String.class;  // 标签
             case 2: return String.class;  // 修改日期
             case 3: return String.class;  // 类型
@@ -407,14 +461,8 @@ public class FileTableModel extends AbstractTableModel {
         }
         FileEntry entry = displayedEntries.get(rowIndex);
         switch (columnIndex) {
-            case 0: { // 名称（过滤标签，显示纯文件名）
-                String rawName = entry.file.getName();
-                int dot = rawName.lastIndexOf('.');
-                String base = dot > 0 ? rawName.substring(0, dot) : rawName;
-                String ext = dot > 0 ? rawName.substring(dot) : "";
-                String cleanName = FileUtil.getAllTagsPattern().matcher(base).replaceAll("").trim();
-                return cleanName.isEmpty() ? rawName : cleanName + ext;
-            }
+            case 0: // 名称（返回 FileEntry，由 FileNameCellRenderer 渲染图标+文件名）
+                return entry;
             case 1: { // 标签
                 List<String> tags = FileUtil.parseAllTags(entry.file.getName());
                 return String.join(",", tags);
@@ -438,6 +486,9 @@ public class FileTableModel extends AbstractTableModel {
     // ========== 内部工具 ==========
 
     private static String getFileType(File file) {
+        if (file.isDirectory()) {
+            return "文件夹";
+        }
         String name = file.getName();
         int dot = name.lastIndexOf('.');
         if (dot > 0 && dot < name.length() - 1) {
@@ -450,12 +501,14 @@ public class FileTableModel extends AbstractTableModel {
     /**
      * 文件条目，缓存文件类型等元数据
      */
-    private static class FileEntry {
+    static class FileEntry {
         final File file;
         final String type;
+        final boolean isDirectory;
 
         FileEntry(File file) {
             this.file = file;
+            this.isDirectory = file.isDirectory();
             this.type = getFileType(file);
         }
     }
