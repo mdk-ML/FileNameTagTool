@@ -65,8 +65,8 @@ public class Config {
     public static int fileSortColumn = 0;
     /** 文件列表排序方向（true=升序, false=降序） */
     public static boolean fileSortAscending = true;
-    /** 文件列表各列宽度（名称,标签,修改日期,类型,大小） */
-    public static int[] fileColumnWidths = {200, 150, 140, 80, 80};
+    /** 文件列表各列宽度（名称,标签,路径,修改日期,类型,大小） */
+    public static int[] fileColumnWidths = {200, 150, 200, 140, 80, 80};
     /** 标签颜色映射表 */
     public static Map<String, Color> tagColors = new HashMap<>();
 

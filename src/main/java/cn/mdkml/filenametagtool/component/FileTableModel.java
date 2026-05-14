@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
  */
 public class FileTableModel extends AbstractTableModel {
 
-    private static final String[] COLUMNS = {"名称", "标签", "修改日期", "类型", "大小"};
+    private static final String[] COLUMNS = {"名称", "标签", "路径", "修改日期", "类型", "大小"};
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy/MM/dd HH:mm");
 
     private final List<FileEntry> allEntries = new ArrayList<>();
@@ -37,6 +37,7 @@ public class FileTableModel extends AbstractTableModel {
     private String[] searchKeywords = new String[0];
     private int sortColumn = 0;
     private boolean sortAscending = true;
+    private String rootPath = "";  // 根目录路径，用于计算相对路径
 
     public FileTableModel() {
     }
@@ -59,6 +60,7 @@ public class FileTableModel extends AbstractTableModel {
      */
     public void setFilesRecursive(String rootPath) {
         allEntries.clear();
+        this.rootPath = rootPath;
         try {
             Files.walkFileTree(Path.of(rootPath), new SimpleFileVisitor<>() {
                 @Override
@@ -223,16 +225,22 @@ public class FileTableModel extends AbstractTableModel {
                     cmp = a.file.getName().compareToIgnoreCase(b.file.getName());
                 }
                 break;
-            case 2: // 修改日期
+            case 2: // 路径 - 按相对路径排序
+                cmp = getRelativePath(a).compareToIgnoreCase(getRelativePath(b));
+                if (cmp == 0) {
+                    cmp = a.file.getName().compareToIgnoreCase(b.file.getName());
+                }
+                break;
+            case 3: // 修改日期
                 cmp = Long.compare(a.file.lastModified(), b.file.lastModified());
                 break;
-            case 3: // 类型
+            case 4: // 类型
                 cmp = a.type.compareToIgnoreCase(b.type);
                 if (cmp == 0) {
                     cmp = a.file.getName().compareToIgnoreCase(b.file.getName());
                 }
                 break;
-            case 4: // 大小
+            case 5: // 大小
                 cmp = Long.compare(a.file.length(), b.file.length());
                 break;
             default:
@@ -447,9 +455,10 @@ public class FileTableModel extends AbstractTableModel {
         switch (columnIndex) {
             case 0: return FileEntry.class;  // 名称（含图标）
             case 1: return String.class;  // 标签
-            case 2: return String.class;  // 修改日期
-            case 3: return String.class;  // 类型
-            case 4: return String.class;  // 大小
+            case 2: return String.class;  // 路径
+            case 3: return String.class;  // 修改日期
+            case 4: return String.class;  // 类型
+            case 5: return String.class;  // 大小
             default: return Object.class;
         }
     }
@@ -467,11 +476,13 @@ public class FileTableModel extends AbstractTableModel {
                 List<String> tags = FileUtil.parseAllTags(entry.file.getName());
                 return String.join(",", tags);
             }
-            case 2: // 修改日期
+            case 2: // 路径（相对路径）
+                return getRelativePath(entry);
+            case 3: // 修改日期
                 return DATE_FORMAT.format(new Date(entry.file.lastModified()));
-            case 3: // 类型
+            case 4: // 类型
                 return entry.type;
-            case 4: // 大小
+            case 5: // 大小
                 return FileUtil.formatFileSize(entry.file.length());
             default:
                 return "";
@@ -496,6 +507,36 @@ public class FileTableModel extends AbstractTableModel {
             return ext + " 文件";
         }
         return "文件";
+    }
+
+    /**
+     * 获取文件相对于根目录的路径
+     * <p>
+     * 文件夹返回自身相对路径，文件返回父目录相对路径。
+     * 如果无法计算相对路径，则返回空字符串。
+     * </p>
+     *
+     * @param entry 文件条目
+     * @return 相对路径字符串
+     */
+    private String getRelativePath(FileEntry entry) {
+        if (rootPath.isEmpty()) {
+            return "";
+        }
+        try {
+            Path filePath = entry.file.toPath().toAbsolutePath().normalize();
+            Path root = Path.of(rootPath).toAbsolutePath().normalize();
+            Path relative = root.relativize(filePath);
+            // 文件：取父目录的相对路径
+            if (entry.file.isFile()) {
+                Path parent = relative.getParent();
+                return parent != null ? parent.toString() : "";
+            }
+            // 文件夹：返回自身相对路径
+            return relative.toString();
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     /**
