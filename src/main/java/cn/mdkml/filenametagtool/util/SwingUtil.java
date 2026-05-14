@@ -1,10 +1,8 @@
 package cn.mdkml.filenametagtool.util;
 
-import cn.mdkml.filenametagtool.component.FileTableModel;
-import cn.mdkml.filenametagtool.component.HighlightCellRenderer;
-import cn.mdkml.filenametagtool.component.SortableHeaderRenderer;
-import cn.mdkml.filenametagtool.component.TagCellRenderer;
+import cn.mdkml.filenametagtool.component.*;
 import cn.mdkml.filenametagtool.model.Config;
+import cn.mdkml.filenametagtool.model.MessageType;
 import cn.mdkml.filenametagtool.model.TabIndex;
 
 import javax.swing.*;
@@ -17,8 +15,6 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.TableColumnModelEvent;
 import javax.swing.event.TableColumnModelListener;
 import java.awt.*;
-import java.awt.datatransfer.DataFlavor;
-import java.awt.datatransfer.Transferable;
 import java.awt.event.*;
 import java.io.File;
 import java.io.IOException;
@@ -44,13 +40,12 @@ public final class SwingUtil {
     /** 统一标签面板的搜索关键字（内存暂存，刷新后恢复） */
     private static String unifiedTagSearchKeyword = "";
 
-    private static final Color GRADIENT_START = new Color(74, 144, 226);
-    private static final Color BG_WHITE = Color.WHITE;
-    private static final Color BG_CONTENT = new Color(249, 249, 249);
-    private static final Color BG_MAIN = new Color(240, 240, 240);
-    private static final Color BORDER_GRAY = new Color(220, 220, 220);
-    private static final Color TEXT_DARK = new Color(51, 51, 51);
-    private static final Color TEXT_GRAY = new Color(150, 150, 150);
+    public static final Color GRADIENT_START = new Color(74, 144, 226);
+    public static final Color BG_WHITE = Color.WHITE;
+    public static final Color BG_CONTENT = new Color(249, 249, 249);
+    public static final Color BORDER_GRAY = new Color(220, 220, 220);
+    public static final Color TEXT_DARK = new Color(51, 51, 51);
+    public static final Color TEXT_GRAY = new Color(150, 150, 150);
 
     /**
      * 初始化系统外观设置
@@ -93,9 +88,6 @@ public final class SwingUtil {
     public static void showError(String msg) {
         showNotification(msg, "错误", MessageType.ERROR);
     }
-
-    /** 弹窗类型枚举 */
-    private enum MessageType {INFO, SUCCESS, ERROR}
 
     /**
      * 通知弹窗内部实现。
@@ -219,17 +211,6 @@ public final class SwingUtil {
      * @param path 目录路径
      */
     public static void createTagManagerWindow(String path) {
-        createTagManagerWindow(path, -1, null);
-    }
-
-    /**
-     * 创建标签管理窗口。
-     *
-     * @param path          目录路径
-     * @param initialTab    初始选中的标签页索引（-1 使用默认）
-     * @param filesToSelect 要自动选中的文件路径列表（null 表示不自动选中）
-     */
-    public static void createTagManagerWindow(String path, int initialTab, List<Path> filesToSelect) {
         ConfigUtil.reload();
 
         // 1. 空值检查
@@ -311,16 +292,11 @@ public final class SwingUtil {
         final JTabbedPane finalTabbedPane = tabbedPane;
         final Runnable[] refreshUnifiedTag = new Runnable[1];
         final Runnable[] refreshSettings = new Runnable[1];
-        refreshUnifiedTag[0] = () -> finalTabbedPane.setComponentAt(TabIndex.UNIFIED_TAG, createUnifiedTagTab(finalPath, refreshUnifiedTag[0], filesToSelect));
+        refreshUnifiedTag[0] = () -> finalTabbedPane.setComponentAt(TabIndex.UNIFIED_TAG, createUnifiedTagTab(finalPath, refreshUnifiedTag[0]));
         refreshSettings[0] = () -> finalTabbedPane.setComponentAt(TabIndex.SETTINGS, createSettingsTab(finalPath, refreshSettings[0]));
 
-        tabbedPane.addTab("标签管理", null, createUnifiedTagTab(path, refreshUnifiedTag[0], filesToSelect));
+        tabbedPane.addTab("标签管理", null, createUnifiedTagTab(path, refreshUnifiedTag[0]));
         tabbedPane.addTab("设置", null, createSettingsTab(path, refreshSettings[0]));
-
-        // 设置初始标签页
-        if (initialTab >= 0 && initialTab < tabbedPane.getTabCount()) {
-            tabbedPane.setSelectedIndex(initialTab);
-        }
 
         // 切换标签时刷新对应面板内容
         tabbedPane.addChangeListener(e -> {
@@ -372,10 +348,9 @@ public final class SwingUtil {
      *
      * @param path          目录路径
      * @param refreshAction 刷新回调
-     * @param filesToSelect 要自动选中的文件路径列表（null 表示不自动选中）
      * @return 统一标签管理面板
      */
-    private static JPanel createUnifiedTagTab(String path, Runnable refreshAction, List<Path> filesToSelect) {
+    private static JPanel createUnifiedTagTab(String path, Runnable refreshAction) {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
         panel.setBackground(BG_CONTENT);
@@ -906,10 +881,10 @@ public final class SwingUtil {
                 selSize += f.length();
             }
             if (selCount == 0) {
-                statusBar.setText(totalCount + " 个项目 | " + formatFileSize(totalSize));
+                statusBar.setText(totalCount + " 个项目 | " + FileUtil.formatFileSize(totalSize));
             } else {
-                statusBar.setText(totalCount + " 个项目 | " + formatFileSize(totalSize)
-                        + " | 选中 " + selCount + " 个项目 | " + formatFileSize(selSize));
+                statusBar.setText(totalCount + " 个项目 | " + FileUtil.formatFileSize(totalSize)
+                        + " | 选中 " + selCount + " 个项目 | " + FileUtil.formatFileSize(selSize));
             }
         };
         updateStatusBar.run();
@@ -1009,25 +984,6 @@ public final class SwingUtil {
         filesContainer.add(filesScroll, BorderLayout.CENTER);
         filesContainer.add(statusBar, BorderLayout.SOUTH);
         filesContainer.setBorder(originalBorder);
-
-        // 自动选中指定的文件
-        if (filesToSelect != null && !filesToSelect.isEmpty()) {
-            Set<String> selectNames = new HashSet<>();
-            for (Path p : filesToSelect) {
-                Path fn = p.getFileName();
-                if (fn != null) {
-                    selectNames.add(fn.toString());
-                }
-            }
-            for (int i = 0; i < tableModel.getRowCount(); i++) {
-                if (selectNames.contains(tableModel.getValueAt(i, 0))) {
-                    int viewRow = fileTable.convertRowIndexToView(i);
-                    if (viewRow >= 0) {
-                        fileTable.addRowSelectionInterval(viewRow, viewRow);
-                    }
-                }
-            }
-        }
 
         // ==================== 右侧下部：自定义标签输入模块 ====================
         String placeholderText = "输入自定义标签，多个标签请用空格分隔，例如：紧急任务 Q2季度报告 客户反馈";
@@ -1612,160 +1568,6 @@ public final class SwingUtil {
     }
 
     /**
-     * 标签管理列表单元格渲染器，集成排序和颜色设置功能。
-     * <p>
-     * 普通标签：显示颜色预览块 + 标签名 + 颜色来源
-     * 特殊标签：显示说明文字
-     * </p>
-     */
-    private static class TagManageListCellRenderer extends DefaultListCellRenderer {
-        private static final Color SPECIAL_BG = new Color(255, 248, 225);
-        private static final Color SPECIAL_FG = new Color(180, 130, 0);
-
-        @Override
-        public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
-            String text = value != null ? value.toString() : "";
-            boolean isSpecial = FileUtil.TAG_ORDER_FILENAME.equals(text)
-                    || FileUtil.TAG_ORDER_VERSION.equals(text)
-                    || FileUtil.TAG_ORDER_DATE.equals(text);
-
-            if (isSpecial) {
-                // 特殊标签使用简单样式
-                JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-                label.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
-                label.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_GRAY),
-                        BorderFactory.createEmptyBorder(8, 12, 8, 12)));
-
-                if (isSelected) {
-                    // 选中状态保持系统默认
-                } else {
-                    label.setBackground(SPECIAL_BG);
-                    label.setForeground(SPECIAL_FG);
-                }
-
-                if (FileUtil.TAG_ORDER_FILENAME.equals(text)) {
-                    label.setText("  {文件名}  —  源文件名在标签序列中的位置");
-                } else if (FileUtil.TAG_ORDER_VERSION.equals(text)) {
-                    label.setText("  {版本号}  —  版本号（如 V1、V2）在标签序列中的位置");
-                } else if (FileUtil.TAG_ORDER_DATE.equals(text)) {
-                    label.setText("  {当前日期}  —  日期标签（如 20260506）在标签序列中的位置");
-                }
-                return label;
-            }
-
-            // 普通标签使用带颜色预览的样式
-            JPanel panel = new JPanel(new BorderLayout(10, 0));
-            panel.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_GRAY),
-                    BorderFactory.createEmptyBorder(6, 12, 6, 12)));
-
-            Color bgColor = TagUtil.getTagColor(text);
-
-            // 颜色预览块
-            JPanel colorPreview = new JPanel();
-            colorPreview.setBackground(bgColor);
-            colorPreview.setPreferredSize(new Dimension(24, 24));
-            colorPreview.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200)));
-
-            // 标签名
-            JLabel tagLabel = new JLabel(text);
-            tagLabel.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
-
-            // 颜色来源提示
-            boolean isCustom = TagUtil.hasCustomColor(text);
-            JLabel sourceLabel = new JLabel(isCustom ? "自定义" : "自动");
-            sourceLabel.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 11));
-            sourceLabel.setForeground(Color.GRAY);
-
-            panel.add(colorPreview, BorderLayout.WEST);
-            panel.add(tagLabel, BorderLayout.CENTER);
-            panel.add(sourceLabel, BorderLayout.EAST);
-
-            if (isSelected) {
-                panel.setBackground(list.getSelectionBackground());
-            } else {
-                panel.setBackground(BG_WHITE);
-            }
-
-            return panel;
-        }
-    }
-
-    /**
-     * 标签列表拖拽传输处理器，支持在 JList 内部拖拽重排序。
-     */
-    private static class TagListTransferHandler extends TransferHandler {
-        private final DefaultListModel<String> model;
-        private int dragIndex = -1;
-
-        TagListTransferHandler(DefaultListModel<String> model) {
-            this.model = model;
-        }
-
-        @Override
-        protected Transferable createTransferable(JComponent component) {
-            JList<?> list = (JList<?>) component;
-            dragIndex = list.getSelectedIndex();
-            String value = list.getSelectedValue().toString();
-            return new Transferable() {
-                @Override
-                public DataFlavor[] getTransferDataFlavors() {
-                    return new DataFlavor[]{DataFlavor.stringFlavor};
-                }
-
-                @Override
-                public boolean isDataFlavorSupported(DataFlavor flavor) {
-                    return DataFlavor.stringFlavor.equals(flavor);
-                }
-
-                @Override
-                public Object getTransferData(DataFlavor flavor) {
-                    return value;
-                }
-            };
-        }
-
-        @Override
-        public int getSourceActions(JComponent component) {
-            return MOVE;
-        }
-
-        @Override
-        public boolean importData(TransferSupport support) {
-            if (!canImport(support)) {
-                return false;
-            }
-            JList.DropLocation dropLocation = (JList.DropLocation) support.getDropLocation();
-            int dropIndex = dropLocation.getIndex();
-
-            try {
-                String draggedItem = (String) support.getTransferable().getTransferData(DataFlavor.stringFlavor);
-                if (dragIndex >= 0 && dragIndex < model.size()) {
-                    model.remove(dragIndex);
-                    if (dropIndex > dragIndex) {
-                        dropIndex--;
-                    }
-                }
-                model.add(dropIndex, draggedItem);
-                return true;
-            } catch (Exception e) {
-                return false;
-            }
-        }
-
-        @Override
-        public boolean canImport(TransferSupport support) {
-            return support.isDrop() && support.isDataFlavorSupported(DataFlavor.stringFlavor);
-        }
-
-        @Override
-        protected void exportDone(JComponent component, Transferable data, int action) {
-            dragIndex = -1;
-        }
-    }
-
-    /**
      * 执行移除标签操作。
      *
      * @param selectedFiles 已选中的文件列表
@@ -1857,25 +1659,6 @@ public final class SwingUtil {
                 return 17;
             }
         };
-    }
-
-    /**
-     * 格式化文件大小为可读字符串
-     *
-     * @param bytes 字节数
-     * @return 格式化后的字符串
-     */
-    private static String formatFileSize(long bytes) {
-        if (bytes < 1024) {
-            return bytes + " B";
-        }
-        if (bytes < 1024 * 1024) {
-            return String.format("%.1f KB", bytes / 1024.0);
-        }
-        if (bytes < 1024 * 1024 * 1024) {
-            return String.format("%.1f MB", bytes / (1024.0 * 1024));
-        }
-        return String.format("%.2f GB", bytes / (1024.0 * 1024 * 1024));
     }
 
     /**
@@ -2046,7 +1829,7 @@ public final class SwingUtil {
 
         dialog.setContentPane(mainPanel);
         dialog.pack();
-        dialog.setLocationRelativeTo(table);
+        dialog.setLocationRelativeTo(dialog.getOwner());
         dialog.setVisible(true);
     }
 
@@ -2203,7 +1986,7 @@ public final class SwingUtil {
 
         dialog.setContentPane(mainPanel);
         dialog.pack();
-        dialog.setLocationRelativeTo(tagJList);
+        dialog.setLocationRelativeTo(dialog.getOwner());
         dialog.setVisible(true);
     }
 

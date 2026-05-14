@@ -7,7 +7,10 @@ import javax.swing.table.AbstractTableModel;
 import java.io.File;
 import java.text.Collator;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 /**
@@ -421,7 +424,7 @@ public class FileTableModel extends AbstractTableModel {
             case 3: // 类型
                 return entry.type;
             case 4: // 大小
-                return formatFileSize(entry.file.length());
+                return FileUtil.formatFileSize(entry.file.length());
             default:
                 return "";
         }
@@ -442,19 +445,6 @@ public class FileTableModel extends AbstractTableModel {
             return ext + " 文件";
         }
         return "文件";
-    }
-
-    private static String formatFileSize(long bytes) {
-        if (bytes < 1024) {
-            return bytes + " B";
-        }
-        if (bytes < 1024 * 1024) {
-            return String.format("%.1f KB", bytes / 1024.0);
-        }
-        if (bytes < 1024 * 1024 * 1024) {
-            return String.format("%.1f MB", bytes / (1024.0 * 1024));
-        }
-        return String.format("%.2f GB", bytes / (1024.0 * 1024 * 1024));
     }
 
     /**

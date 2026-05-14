@@ -577,4 +577,23 @@ public final class FileUtil {
         }
         return false;
     }
+
+    /**
+     * 格式化文件大小为可读字符串
+     *
+     * @param bytes 字节数
+     * @return 格式化后的字符串
+     */
+    public static String formatFileSize(long bytes) {
+        if (bytes < 1024) {
+            return bytes + " B";
+        }
+        if (bytes < 1024 * 1024) {
+            return String.format("%.1f KB", bytes / 1024.0);
+        }
+        if (bytes < 1024 * 1024 * 1024) {
+            return String.format("%.1f MB", bytes / (1024.0 * 1024));
+        }
+        return String.format("%.2f GB", bytes / (1024.0 * 1024 * 1024));
+    }
 }
