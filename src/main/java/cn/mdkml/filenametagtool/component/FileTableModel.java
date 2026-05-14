@@ -157,7 +157,7 @@ public class FileTableModel extends AbstractTableModel {
     public long getTotalSize() {
         long total = 0;
         for (FileEntry entry : displayedEntries) {
-            total += entry.file.length();
+            total += entry.size;
         }
         return total;
     }
@@ -240,8 +240,8 @@ public class FileTableModel extends AbstractTableModel {
                     cmp = a.file.getName().compareToIgnoreCase(b.file.getName());
                 }
                 break;
-            case 5: // 大小
-                cmp = Long.compare(a.file.length(), b.file.length());
+            case 5: // 大小（文件夹为递归累加大小）
+                cmp = Long.compare(a.size, b.size);
                 break;
             default:
                 cmp = 0;
@@ -482,8 +482,8 @@ public class FileTableModel extends AbstractTableModel {
                 return DATE_FORMAT.format(new Date(entry.file.lastModified()));
             case 4: // 类型
                 return entry.type;
-            case 5: // 大小
-                return FileUtil.formatFileSize(entry.file.length());
+            case 5: // 大小（文件夹为递归累加大小）
+                return FileUtil.formatFileSize(entry.size);
             default:
                 return "";
         }
@@ -546,11 +546,37 @@ public class FileTableModel extends AbstractTableModel {
         final File file;
         final String type;
         final boolean isDirectory;
+        final long size;
 
         FileEntry(File file) {
             this.file = file;
             this.isDirectory = file.isDirectory();
             this.type = getFileType(file);
+            this.size = calculateSize(file);
         }
+    }
+
+    /**
+     * 计算文件或文件夹的大小（字节）
+     * <p>
+     * 文件直接返回 {@link File#length()}。
+     * 文件夹递归累加所有子文件的大小。
+     * </p>
+     *
+     * @param file 文件或文件夹
+     * @return 大小（字节）
+     */
+    private static long calculateSize(File file) {
+        if (file.isFile()) {
+            return file.length();
+        }
+        long total = 0;
+        File[] children = file.listFiles();
+        if (children != null) {
+            for (File child : children) {
+                total += calculateSize(child);
+            }
+        }
+        return total;
     }
 }
