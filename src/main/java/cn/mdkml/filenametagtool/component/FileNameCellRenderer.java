@@ -7,7 +7,10 @@ import javax.swing.filechooser.FileSystemView;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -16,6 +19,7 @@ import java.util.Map;
  * 使用 {@link FileSystemView} 获取文件/文件夹的系统图标，
  * 同一扩展名的图标会缓存以提高性能。
  * 文件名会过滤掉标签部分，只显示纯文件名。
+ * 支持搜索关键词高亮显示。
  * </p>
  */
 public class FileNameCellRenderer extends DefaultTableCellRenderer {
@@ -25,6 +29,16 @@ public class FileNameCellRenderer extends DefaultTableCellRenderer {
 
     private final Map<String, Icon> iconCache = new HashMap<>();
     private final FileSystemView fileSystemView = FileSystemView.getFileSystemView();
+    private String[] keywords = new String[0];
+
+    /**
+     * 设置需要高亮的搜索关键词
+     *
+     * @param keywords 关键词数组
+     */
+    public void setKeywords(String[] keywords) {
+        this.keywords = keywords != null ? keywords : new String[0];
+    }
 
     @Override
     public Component getTableCellRendererComponent(JTable table, Object value,
@@ -43,8 +57,9 @@ public class FileNameCellRenderer extends DefaultTableCellRenderer {
         Icon icon = getIcon(entry.file);
         label.setIcon(icon);
 
-        // 设置文本（过滤标签，显示纯文件名）
-        label.setText(getCleanFileName(entry.file));
+        // 设置文本（过滤标签，显示纯文件名，支持高亮）
+        String cleanName = getCleanFileName(entry.file);
+        label.setText(highlightText(cleanName));
         label.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
 
         return label;
@@ -100,5 +115,67 @@ public class FileNameCellRenderer extends DefaultTableCellRenderer {
         String ext = dot > 0 ? rawName.substring(dot) : "";
         String cleanName = FileUtil.getAllTagsPattern().matcher(base).replaceAll("").trim();
         return cleanName.isEmpty() ? rawName : cleanName + ext;
+    }
+
+    /**
+     * 对文本应用搜索关键词高亮
+     *
+     * @param text 原始文本
+     * @return 带高亮的 HTML 文本，无关键词时返回原始文本
+     */
+    private String highlightText(String text) {
+        if (text == null || keywords.length == 0) {
+            return text;
+        }
+
+        String lowerText = text.toLowerCase();
+
+        // 找出所有匹配区间
+        List<int[]> highlights = new ArrayList<>();
+        for (String kw : keywords) {
+            String lowerKw = kw.toLowerCase();
+            int from = 0;
+            while ((from = lowerText.indexOf(lowerKw, from)) >= 0) {
+                highlights.add(new int[]{from, from + kw.length()});
+                from += kw.length();
+            }
+        }
+
+        if (highlights.isEmpty()) {
+            return text;
+        }
+
+        // 合并重叠区间
+        highlights.sort(Comparator.comparingInt(a -> a[0]));
+        List<int[]> merged = new ArrayList<>();
+        for (int[] interval : highlights) {
+            if (merged.isEmpty() || merged.get(merged.size() - 1)[1] < interval[0]) {
+                merged.add(interval);
+            } else {
+                merged.get(merged.size() - 1)[1] = Math.max(merged.get(merged.size() - 1)[1], interval[1]);
+            }
+        }
+
+        // 构建 HTML 高亮
+        String escaped = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+        StringBuilder html = new StringBuilder("<html><nobr>");
+        int lastEnd = 0;
+        for (int[] interval : merged) {
+            int start = interval[0];
+            int end = interval[1];
+            if (start > lastEnd) {
+                html.append(escaped, lastEnd, start);
+            }
+            html.append("<span style=\"background:#FFEB3B;color:#000;padding:1px 2px\">");
+            html.append(escaped, start, end);
+            html.append("</span>");
+            lastEnd = end;
+        }
+        if (lastEnd < escaped.length()) {
+            html.append(escaped, lastEnd, escaped.length());
+        }
+        html.append("</nobr></html>");
+
+        return html.toString();
     }
 }

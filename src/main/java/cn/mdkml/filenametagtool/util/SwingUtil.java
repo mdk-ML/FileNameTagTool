@@ -792,18 +792,36 @@ public final class SwingUtil {
             }
         });
 
-        // 右键菜单：重命名文件
+        // 右键菜单：重命名文件 / 在资源管理器中显示
         JPopupMenu filePopupMenu = new JPopupMenu();
+        final int[] rightClickedRow = {-1};
         JMenuItem renameFileItem = new JMenuItem("重命名");
         renameFileItem.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
         filePopupMenu.add(renameFileItem);
         renameFileItem.addActionListener(e -> {
-            int selectedRow = fileTable.getSelectedRow();
-            if (selectedRow >= 0) {
-                int modelRow = fileTable.convertRowIndexToModel(selectedRow);
+            if (rightClickedRow[0] >= 0) {
+                int modelRow = fileTable.convertRowIndexToModel(rightClickedRow[0]);
                 File file = tableModel.getFileAt(modelRow);
                 if (file != null && file.exists()) {
                     showRenameDialog(file, fileTable, tableModel, refreshAction);
+                }
+            }
+        });
+        JMenuItem showInExplorerItem = new JMenuItem("在资源管理器中显示");
+        showInExplorerItem.setFont(new Font("Microsoft YaHei UI", Font.PLAIN, 13));
+        filePopupMenu.add(showInExplorerItem);
+        showInExplorerItem.addActionListener(e -> {
+            if (rightClickedRow[0] >= 0) {
+                int modelRow = fileTable.convertRowIndexToModel(rightClickedRow[0]);
+                File file = tableModel.getFileAt(modelRow);
+                if (file != null && file.exists()) {
+                    try {
+                        Runtime.getRuntime().exec(new String[]{
+                                "explorer.exe", "/select,\"" + file.getAbsolutePath() + "\""
+                        });
+                    } catch (IOException ex) {
+                        showError("打开资源管理器失败：" + ex.getMessage());
+                    }
                 }
             }
         });
@@ -813,6 +831,7 @@ public final class SwingUtil {
                 if (SwingUtilities.isRightMouseButton(e)) {
                     int row = fileTable.rowAtPoint(e.getPoint());
                     if (row >= 0) {
+                        rightClickedRow[0] = row;
                         fileTable.setRowSelectionInterval(row, row);
                         filePopupMenu.show(fileTable, e.getX(), e.getY());
                     }
@@ -926,6 +945,7 @@ public final class SwingUtil {
             String[] keywords = isFiltering ? filterText.split("\\s+") : new String[0];
             tableModel.setSearchKeywords(keywords);
             highlightRenderer.setKeywords(keywords);
+            fileNameRenderer.setKeywords(keywords);
 
             updateStatusBar.run();
             filesScroll.repaint();
@@ -1171,6 +1191,7 @@ public final class SwingUtil {
             String[] keywords = unifiedTagSearchKeyword.split("\\s+");
             tableModel.setSearchKeywords(keywords);
             highlightRenderer.setKeywords(keywords);
+            fileNameRenderer.setKeywords(keywords);
             headerRenderer.setSortState(-1, true);
             searchField.setText(unifiedTagSearchKeyword);
             clearButton.setVisible(true);
