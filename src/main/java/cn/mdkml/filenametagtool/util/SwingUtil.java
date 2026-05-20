@@ -8,20 +8,13 @@ import cn.mdkml.filenametagtool.model.TabIndex;
 import javax.swing.*;
 import javax.swing.Timer;
 import javax.swing.border.TitledBorder;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.TableColumnModelEvent;
-import javax.swing.event.TableColumnModelListener;
+import javax.swing.event.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.util.Collections;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -246,17 +239,6 @@ public final class SwingUtil {
             return;
         }
 
-        // 6. 空目录检查
-        try {
-            if (Files.list(dirPath).filter(Files::isRegularFile).count() == 0) {
-                showMessage("目录为空：" + path);
-                return;
-            }
-        } catch (IOException e) {
-            showError("无法访问目录: " + path + "\n错误: " + e.getMessage());
-            return;
-        }
-
         JFrame frame = new JFrame("文件标签管理 " + path);
         List<Image> icons = new ArrayList<>();
         try {
@@ -365,19 +347,19 @@ public final class SwingUtil {
         // ==================== 统计标签数量（递归扫描所有子目录） ====================
         final Map<String, Integer> tagCounts = new HashMap<>();
         try {
-            java.nio.file.Files.walkFileTree(java.nio.file.Path.of(path), new java.nio.file.SimpleFileVisitor<>() {
+            Files.walkFileTree(Path.of(path), new SimpleFileVisitor<>() {
                 @Override
-                public java.nio.file.FileVisitResult visitFile(java.nio.file.Path file, java.nio.file.attribute.BasicFileAttributes attrs) {
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
                     List<String> fileTags = FileUtil.parseAllTags(file.getFileName().toString());
                     for (String tag : fileTags) {
                         tagCounts.merge(tag, 1, Integer::sum);
                     }
-                    return java.nio.file.FileVisitResult.CONTINUE;
+                    return FileVisitResult.CONTINUE;
                 }
 
                 @Override
-                public java.nio.file.FileVisitResult visitFileFailed(java.nio.file.Path file, java.io.IOException exc) {
-                    return java.nio.file.FileVisitResult.CONTINUE;
+                public FileVisitResult visitFileFailed(Path file, java.io.IOException exc) {
+                    return FileVisitResult.CONTINUE;
                 }
             });
         } catch (IOException e) {
@@ -1532,9 +1514,9 @@ public final class SwingUtil {
             LinkedHashSet<String> scannedTags = new LinkedHashSet<>();
             // 递归扫描所有子目录的标签
             try {
-                java.nio.file.Files.walkFileTree(java.nio.file.Path.of(path), new java.nio.file.SimpleFileVisitor<>() {
+                Files.walkFileTree(Path.of(path), new SimpleFileVisitor<>() {
                     @Override
-                    public java.nio.file.FileVisitResult visitFile(java.nio.file.Path file, java.nio.file.attribute.BasicFileAttributes attrs) {
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
                         for (String tag : FileUtil.parseAllTags(file.getFileName().toString())) {
                             if (FileUtil.VERSION_TAG_PATTERN.matcher(tag).matches()) {
                                 continue;
@@ -1544,12 +1526,12 @@ public final class SwingUtil {
                             }
                             scannedTags.add(tag);
                         }
-                        return java.nio.file.FileVisitResult.CONTINUE;
+                        return FileVisitResult.CONTINUE;
                     }
 
                     @Override
-                    public java.nio.file.FileVisitResult visitFileFailed(java.nio.file.Path file, java.io.IOException exc) {
-                        return java.nio.file.FileVisitResult.CONTINUE;
+                    public FileVisitResult visitFileFailed(Path file, java.io.IOException exc) {
+                        return FileVisitResult.CONTINUE;
                     }
                 });
             } catch (IOException ex) {
