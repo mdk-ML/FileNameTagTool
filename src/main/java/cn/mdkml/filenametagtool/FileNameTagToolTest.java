@@ -30,7 +30,7 @@ public class FileNameTagToolTest {
 
         String[] args = {
             "manage",
-            "C:\\Users\\MU\\Documents\\新投星辰\\司库"
+            "C:\\Users\\MU\\Documents\\新投星辰\\其他"
         };
 
         final Parsed parsed = Parsed.parseArgs(args);

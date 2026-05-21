@@ -6,6 +6,7 @@ import cn.mdkml.filenametagtool.util.FileUtil;
 import javax.swing.table.AbstractTableModel;
 import java.io.File;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -286,7 +287,7 @@ public class FileTableModel extends AbstractTableModel {
                 case 1: // 数字 vs 数字：按数值比较
                     String num1 = extractNumber(nameA, i);
                     String num2 = extractNumber(nameB, j);
-                    int cmpNum = Long.compare(Long.parseLong(num1), Long.parseLong(num2));
+                    int cmpNum = new BigInteger(num1).compareTo(new BigInteger(num2));
                     if (cmpNum != 0) {
                         return cmpNum;
                     }
