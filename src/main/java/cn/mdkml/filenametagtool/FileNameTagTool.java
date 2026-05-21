@@ -29,10 +29,11 @@ public final class FileNameTagTool {
      * @param args 命令行参数，第一个为动作类型，后续为文件路径
      */
     public static void main(String[] args) {
-        SwingUtil.initLookAndFeel();
-        ConfigUtil.init();
+        try {
+            SwingUtil.initLookAndFeel();
+            ConfigUtil.init();
 
-        // 输出传入参数，方便测试和验证
+            // 输出传入参数，方便测试和验证
 //        StringBuilder sb = new StringBuilder("传入参数（共 " + args.length + " 个）：\n");
 //        for (int i = 0; i < args.length; i++) {
 //            sb.append("args[").append(i).append("]: ").append(args[i]).append("\n");
@@ -40,36 +41,36 @@ public final class FileNameTagTool {
 //        SwingUtil.showError(sb.toString());
 
 
-        final Parsed parsed = Parsed.parseArgs(args);
-        if (parsed.action == null) {
-            SwingUtil.showMessage("缺少动作参数，请用：removeAll | newVersion | copyWithoutTags。");
-            return;
-        }
+            final Parsed parsed = Parsed.parseArgs(args);
+            if (parsed.action == null) {
+                SwingUtil.showMessage("缺少动作参数，请用：removeAll | newVersion | copyWithoutTags。");
+                return;
+            }
 //        SwingUtil.showError(parsed.action+parsed.paths.get(0));
-        final Action action = parsed.action;
-        // 过滤出实际存在的文件路径，去重
-        final List<Path> existing = parsed.paths.stream()
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .map(FileNameTagTool::safeToPath)
-                .filter(Objects::nonNull)
-                .filter(p -> Files.exists(p, LinkOption.NOFOLLOW_LINKS))
-                .distinct()
-                .collect(Collectors.toList());
+            final Action action = parsed.action;
+            // 过滤出实际存在的文件路径，去重
+            final List<Path> existing = parsed.paths.stream()
+                                                    .map(String::trim)
+                                                    .filter(s -> !s.isEmpty())
+                                                    .map(FileNameTagTool::safeToPath)
+                                                    .filter(Objects::nonNull)
+                                                    .filter(p -> Files.exists(p, LinkOption.NOFOLLOW_LINKS))
+                                                    .distinct()
+                                                    .collect(Collectors.toList());
 
-        if (existing.isEmpty()) {
-            SwingUtil.showMessage("没有获取到有效的文件/文件夹路径。");
-            return;
-        }
+            if (existing.isEmpty()) {
+                SwingUtil.showMessage("没有获取到有效的文件/文件夹路径。");
+                return;
+            }
 
-        // 标签管理模式：打开标签管理窗口
-        if (action == Action.MANAGE) {
-            SwingUtil.createTagManagerWindow(existing.get(0).toString());
-            return;
-        }
+            // 标签管理模式：打开标签管理窗口
+            if (action == Action.MANAGE) {
+                SwingUtil.createTagManagerWindow(existing.get(0).toString());
+                return;
+            }
 
-        // NEW_VERSION / COPY_WITHOUT_TAGS / REMOVE_ALL
-        try {
+            // NEW_VERSION / COPY_WITHOUT_TAGS / REMOVE_ALL
+
             int renamed = 0;
             int skipped = 0;
             for (Path path : existing) {
