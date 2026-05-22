@@ -1578,31 +1578,43 @@ public final class SwingUtil {
     }
 
     /**
-     * 将当前标签设置（顺序和包裹符号）应用到目录中所有文件。
+     * 将当前标签设置（顺序和包裹符号）递归应用到目录中所有文件（含子目录）。
      *
      * @param dirPath 目录路径
      */
     private static void applyTagSettingsToDirectory(String dirPath) {
-        File currentDir = new File(dirPath);
-        File[] files = currentDir.listFiles();
-        if (files == null) {
-            showMessage("目录为空或无法访问");
+        Path startPath = Path.of(dirPath);
+        if (!Files.isDirectory(startPath)) {
+            showMessage("目录不存在或无法访问");
             return;
         }
 
-        int reordered = 0;
-        for (File file : files) {
-            if (file.isFile()) {
-                try {
-                    if (FileUtil.applyTagSettings(file.toPath())) {
-                        reordered++;
+        final int[] reordered = {0};
+        try {
+            Files.walkFileTree(startPath, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                    try {
+                        if (FileUtil.applyTagSettings(file)) {
+                            reordered[0]++;
+                        }
+                    } catch (Exception e) {
+                        // 跳过无法重命名的文件
                     }
-                } catch (Exception e) {
-                    // 跳过无法重命名的文件
+                    return FileVisitResult.CONTINUE;
                 }
-            }
+
+                @Override
+                public FileVisitResult visitFileFailed(Path file, IOException exc) {
+                    // 跳过无法访问的文件/目录
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (IOException e) {
+            showError("遍历目录失败：" + e.getMessage());
+            return;
         }
-        showSuccess("已重排 " + reordered + " 个文件的标签顺序（包裹符号已统一为" +
+        showSuccess("已重排 " + reordered[0] + " 个文件的标签顺序（包裹符号已统一为" +
                 (Config.STYLE_BRACKET.equals(Config.tagBracketStyle) ? "[]" : "【】") + "）");
     }
 
@@ -1981,27 +1993,35 @@ public final class SwingUtil {
                 }
             }
 
-            // 批量替换目录下所有文件中的旧标签
-            File dir = new File(dirPath);
-            File[] files = dir.listFiles();
-            int renamed = 0;
-            if (files != null) {
-                for (File file : files) {
-                    if (file.isFile()) {
+            // 批量递归替换目录下所有文件（含子目录）中的旧标签
+            final int[] renamed = {0};
+            try {
+                Files.walkFileTree(Path.of(dirPath), new SimpleFileVisitor<>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
                         try {
-                            if (FileUtil.replaceTag(file.toPath(), oldTag, newTag)) {
-                                renamed++;
+                            if (FileUtil.replaceTag(file, oldTag, newTag)) {
+                                renamed[0]++;
                             }
                         } catch (IOException ex) {
                             // 单个文件失败不影响其他文件
                         }
+                        return FileVisitResult.CONTINUE;
                     }
-                }
+
+                    @Override
+                    public FileVisitResult visitFileFailed(Path file, IOException exc) {
+                        // 跳过无法访问的文件/目录
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
+            } catch (IOException ex) {
+                showError("遍历目录失败：" + ex.getMessage());
             }
 
             dialog.dispose();
             refreshAction.run();
-            showSuccess("标签已重命名，已更新 " + renamed + " 个文件");
+            showSuccess("标签已重命名，已更新 " + renamed[0] + " 个文件");
         });
 
         // 回车键确认 / ESC键取消
